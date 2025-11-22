@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Processor</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+					<div>
+                    <h1 class="header-title">Document Processor</h1>
+                    <p class="header-description">Upload and process documents with AI-powered embeddings</p>
+					</div>
+                <button class="btn btn-primary" id="uploadBtn">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Upload Document
+                </button>
+				</div>
+				</div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Documents</h2>
+                    <button class="btn btn-outline btn-sm" id="refreshBtn">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                        Refresh
+                    </button>
+			</div>
+                <div class="table-container">
+                    <table class="table">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Type</th>
+							<th>Size</th>
+                                <th>Vectors</th>
+							<th>Uploaded</th>
+                                <th class="text-right">Actions</th>
+						</tr>
+					</thead>
+                        <tbody id="filesTableBody">
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    <div class="empty-state-content">
+                                        <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                        </svg>
+                                        <p class="empty-title">No documents uploaded</p>
+                                        <p class="empty-description">Upload your first document to get started</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+				</table>
+			</div>
+            </div>
+        </div>
+	</main>
+
+    <!-- Upload Modal -->
+    <div class="modal-overlay" id="uploadModal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Upload Document</h3>
+                <button class="modal-close" id="modalClose">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- File Upload Section -->
+                <div class="form-section" id="uploadSection">
+                    <div class="form-group">
+                        <label class="label">Select File</label>
+                        <div class="dropzone" id="dropzone">
+                            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv" style="display: none;">
+                            <div class="dropzone-content" id="dropzoneContent">
+                                <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <p class="dropzone-text">
+                                    <span class="dropzone-highlight">Click to upload</span> or drag and drop
+                                </p>
+                                <p class="dropzone-hint">PDF, DOC, DOCX, TXT, CSV (MAX. 10MB)</p>
+                            </div>
+                            <div class="file-selected" id="fileSelected" style="display: none;">
+                                <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                <div class="file-details">
+                                    <p class="file-name" id="selectedFileName"></p>
+                                    <p class="file-size" id="selectedFileSize"></p>
+                                </div>
+                                <button class="btn-icon-danger" id="removeFile" type="button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="label" for="chunkSize">
+                                Chunk Size
+                                <span class="label-hint">Characters per chunk</span>
+                            </label>
+                            <input type="number" id="chunkSize" class="input" value="800" min="100" max="2000" step="50">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="chunkOverlap">
+                                Chunk Overlap
+                                <span class="label-hint">Overlapping characters</span>
+                            </label>
+                            <input type="number" id="chunkOverlap" class="input" value="100" min="0" max="500" step="10">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="progress-section" id="progressSection" style="display: none;">
+                    <div class="progress-info">
+                        <p class="progress-title" id="progressTitle">Processing document...</p>
+                        <p class="progress-percentage" id="progressPercentage">0%</p>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    
+                    <!-- Processing Steps -->
+                    <div class="steps">
+                        <div class="step" data-step="upload">
+                            <div class="step-indicator">
+                                <div class="step-icon">1</div>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-title">Uploading file</p>
+                                <p class="step-description" id="step-upload-desc">Waiting to start...</p>
+                            </div>
+                        </div>
+                        <div class="step" data-step="extract">
+                            <div class="step-indicator">
+                                <div class="step-icon">2</div>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-title">Extracting text</p>
+                                <p class="step-description" id="step-extract-desc">Waiting to start...</p>
+                            </div>
+                        </div>
+                        <div class="step" data-step="chunk">
+                            <div class="step-indicator">
+                                <div class="step-icon">3</div>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-title">Creating chunks</p>
+                                <p class="step-description" id="step-chunk-desc">Waiting to start...</p>
+                            </div>
+                        </div>
+                        <div class="step" data-step="embed">
+                            <div class="step-indicator">
+                                <div class="step-icon">4</div>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-title">Generating embeddings</p>
+                                <p class="step-description" id="step-embed-desc">Waiting to start...</p>
+                            </div>
+                        </div>
+                        <div class="step" data-step="store">
+                            <div class="step-indicator">
+                                <div class="step-icon">5</div>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-title">Storing vectors</p>
+                                <p class="step-description" id="step-store-desc">Waiting to start...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Section -->
+                <div class="alert alert-destructive" id="errorSection" style="display: none;">
+                    <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <div class="alert-content">
+                        <h4 class="alert-title">Error</h4>
+                        <p class="alert-description" id="errorMessage"></p>
+                    </div>
+                </div>
+
+                <!-- Success Section -->
+                <div class="alert alert-success" id="successSection" style="display: none;">
+                    <svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <div class="alert-content">
+                        <h4 class="alert-title">Success</h4>
+                        <p class="alert-description" id="successMessage"></p>
+                        <div class="success-stats" id="successStats"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="processBtn" disabled>
+                    <span id="processBtnText">Process Document</span>
+                    <span id="processBtnLoading" style="display: none;">
+                        <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="2" x2="12" y2="6"></line>
+                            <line x1="12" y1="18" x2="12" y2="22"></line>
+                            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                            <line x1="2" y1="12" x2="6" y2="12"></line>
+                            <line x1="18" y1="12" x2="22" y2="12"></line>
+                            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                        </svg>
+                        Processing...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+	<script src="/app.js"></script>
+</body>
+</html>
