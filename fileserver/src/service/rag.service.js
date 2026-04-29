@@ -11,9 +11,9 @@ const CHUNK_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 class RagService {
     constructor() {
-        const apiKey = process.env.GOOGLE_API_KEY;
+        const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY;
         if (!apiKey) {
-            console.warn('[RAG] GOOGLE_API_KEY is not set. Embedding will fail without it.');
+            console.warn('[RAG] GOOGLE_GENERATIVE_AI_API_KEY is not set. Embedding will fail without it.');
         }
         this.genai = new GoogleGenAI({ apiKey: apiKey || '' });
         this.embeddingModelName = process.env.RAG_EMBEDDING_MODEL || 'gemini-embedding-001';
@@ -96,7 +96,7 @@ class RagService {
         });
     }
 
-    async embedTexts(texts) {
+    async embedTexts(texts, onProgress) {
         try {
             console.log(`[RAG] Embedding ${texts.length} texts with ${this.embeddingModelName} (batchSize=${this.embedBatchSize})`);
             if (!Array.isArray(texts) || texts.length === 0) return [];
@@ -109,6 +109,15 @@ class RagService {
                 console.log(`[RAG] Embedding batch ${start / batchSize + 1} (${batch.length} items)`);
                 const batchVectors = await this._embedBatch(batch);
                 vectors.push(...batchVectors);
+                if (onProgress) {
+                    const percentage = 60 + Math.round((vectors.length / texts.length) * 20);
+                    onProgress({
+                        step: 'embed',
+                        status: 'active',
+                        percentage,
+                        message: `Generated ${vectors.length}/${texts.length} embeddings`,
+                    });
+                }
             }
             console.log('[RAG] Embedding complete');
             return vectors;
@@ -118,16 +127,27 @@ class RagService {
         }
     }
 
-    async ingestFileBuffer(buffer, meta) {
+    async ingestFileBuffer(buffer, meta, onProgress, options = {}) {
         const { fileId, filename, originalName, mimetype } = meta;
         console.log(`[RAG] Ingest start fileId=${fileId} filename=${filename}`);
+        if (onProgress) {
+            onProgress({ step: 'extract', status: 'active', percentage: 30, message: 'Extracting text from document' });
+        }
         const text = await this.extractText(buffer, mimetype, filename);
-        const chunks = this.chunkText(text);
+        if (onProgress) {
+            onProgress({ step: 'extract', status: 'completed', percentage: 45, message: `Extracted ${text.length} characters` });
+            onProgress({ step: 'chunk', status: 'active', percentage: 50, message: 'Creating chunks' });
+        }
+        const chunks = this.chunkText(text, options.chunkSize, options.chunkOverlap);
         if (chunks.length === 0) {
             console.log('[RAG] No text extracted, skipping');
             return { inserted: 0 };
         }
-        const embeddings = await this.embedTexts(chunks);
+        if (onProgress) {
+            onProgress({ step: 'chunk', status: 'completed', percentage: 60, message: `Created ${chunks.length} chunks` });
+            onProgress({ step: 'embed', status: 'active', percentage: 60, message: 'Generating embeddings' });
+        }
+        const embeddings = await this.embedTexts(chunks, onProgress);
         const points = chunks.map((chunk, idx) => ({
             id: uuidv5(`${fileId}-chunk-${idx}`, CHUNK_NAMESPACE), // Generate valid UUID for Qdrant
             vector: embeddings[idx],
@@ -139,9 +159,15 @@ class RagService {
                 text: chunk,
             },
         }));
-        console.log({points})
+        if (onProgress) {
+            onProgress({ step: 'embed', status: 'completed', percentage: 80, message: `Generated ${embeddings.length} embeddings` });
+            onProgress({ step: 'store', status: 'active', percentage: 85, message: 'Storing vectors' });
+        }
         const upsertResult = await qdrant.upsertPointsOneByOne(this.collectionName, points);
         console.log(`[RAG] Ingest done fileId=${fileId} inserted=${upsertResult.successCount}/${upsertResult.total}`);
+        if (onProgress) {
+            onProgress({ step: 'store', status: 'completed', percentage: 100, message: `Stored ${upsertResult.successCount} vectors` });
+        }
         return { 
             inserted: upsertResult.successCount, 
             failed: upsertResult.failureCount,
@@ -157,123 +183,6 @@ class RagService {
         return results;
     }
 
-    // Transactional file processing with rollback capability
-    async processFileTransactionally(file, fileId, uploadPath) {
-        const steps = [];
-        let filePath = null;
-        
-        try {
-            console.log(`[RAG] Starting transactional processing for fileId=${fileId}`);
-            
-            // Step 1: Save file to filesystem
-            filePath = path.join(uploadPath, file.filename);
-            fs.writeFileSync(filePath, file.buffer);
-            steps.push({ step: 'file_save', path: filePath });
-            console.log(`[RAG] Step 1: File saved to ${filePath}`);
-            
-            // Step 2: Extract text
-            const text = await this.extractText(file.buffer, file.mimetype, file.originalname);
-            if (!text || !text.trim()) {
-                throw new Error('No text could be extracted from the file');
-            }
-            steps.push({ step: 'text_extraction', textLength: text.length });
-            console.log(`[RAG] Step 2: Extracted ${text.length} characters of text`);
-            
-            // Step 3: Chunk text
-            const chunks = this.chunkText(text);
-            if (chunks.length === 0) {
-                throw new Error('No chunks could be created from the text');
-            }
-            steps.push({ step: 'text_chunking', chunkCount: chunks.length });
-            console.log(`[RAG] Step 3: Created ${chunks.length} chunks`);
-            
-            // Step 4: Generate embeddings
-            const embeddings = await this.embedTexts(chunks);
-            if (embeddings.length !== chunks.length) {
-                throw new Error('Embedding count does not match chunk count');
-            }
-            steps.push({ step: 'embeddings', embeddingCount: embeddings.length });
-            console.log(`[RAG] Step 4: Generated ${embeddings.length} embeddings`);
-            
-            // Step 5: Store in vector database
-            const points = chunks.map((chunk, idx) => ({
-                id: uuidv5(`${fileId}-chunk-${idx}`, CHUNK_NAMESPACE), // Generate valid UUID for Qdrant
-                vector: embeddings[idx],
-                payload: {
-                    fileId,
-                    filename: file.filename,
-                    originalName: file.originalname,
-                    chunk: idx,
-                    text: chunk,
-                    mimetype: file.mimetype,
-                    size: file.size
-                },
-            }));
-            
-            const upsertResult = await qdrant.upsertPointsOneByOne(this.collectionName, points);
-            
-            if (upsertResult.failureCount > 0) {
-                throw new Error(`Failed to upsert ${upsertResult.failureCount}/${upsertResult.total} vectors`);
-            }
-            
-            steps.push({ 
-                step: 'vector_storage', 
-                pointCount: upsertResult.successCount,
-                failedCount: upsertResult.failureCount,
-                totalCount: upsertResult.total
-            });
-            console.log(`[RAG] Step 5: Stored ${upsertResult.successCount}/${upsertResult.total} vectors in database`);
-            
-            console.log(`[RAG] Transaction completed successfully for fileId=${fileId}`);
-            return {
-                success: true,
-                fileId,
-                steps,
-                stats: {
-                    textLength: text.length,
-                    chunkCount: chunks.length,
-                    vectorCount: points.length
-                }
-            };
-            
-        } catch (error) {
-            console.error(`[RAG] Transaction failed for fileId=${fileId}:`, error.message);
-            
-            // Rollback: Clean up any created resources
-            await this.rollbackTransaction(fileId, steps, filePath);
-            
-            return {
-                success: false,
-                error: error.message,
-                fileId,
-                steps
-            };
-        }
-    }
-
-    async rollbackTransaction(fileId, steps, filePath) {
-        console.log(`[RAG] Rolling back transaction for fileId=${fileId}`);
-        
-        try {
-            // Remove vectors from Qdrant
-            if (steps.some(s => s.step === 'vector_storage')) {
-                await qdrant.deleteByFileId(this.collectionName, fileId);
-                console.log(`[RAG] Rollback: Removed vectors for fileId=${fileId}`);
-            }
-        } catch (error) {
-            console.error(`[RAG] Rollback error removing vectors:`, error.message);
-        }
-        
-        try {
-            // Remove file from filesystem
-            if (filePath && fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-                console.log(`[RAG] Rollback: Removed file ${filePath}`);
-            }
-        } catch (error) {
-            console.error(`[RAG] Rollback error removing file:`, error.message);
-        }
-    }
 }
 
 module.exports = new RagService();

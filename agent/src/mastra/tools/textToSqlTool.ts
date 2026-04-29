@@ -18,11 +18,11 @@ export const textToSqlTool = createTool({
 		executionError: z.string().optional().describe("Any error that occurred during execution"),
 		executionSuccess: z.boolean().describe("Whether the SQL execution was successful")
 	}),
-	execute: async ({ context }) => {
-		const { queryText, schemaDescription } = context;
+	execute: async (inputData, _context) => {
+		const { queryText, schemaDescription } = inputData;
 		
 		// Call the comprehensive workflow that implements all 6 steps from @project.mdc
-		const workflowRun = textToSqlWorkflow.createRun();
+		const workflowRun = await textToSqlWorkflow.createRun();
 		const result = await workflowRun.start({
 			inputData: {
 				question: queryText,
@@ -33,21 +33,21 @@ export const textToSqlTool = createTool({
 		// Extract the actual result data from the workflow result
 		if (result.status === 'success') {
 			return result.result;
-		} else {
-			// Handle workflow failure
-			const errorMessage = result.status === 'failed' && 'error' in result 
-				? result.error.message 
-				: `Workflow ${result.status}`;
-				
-			return {
-				originalQuestion: queryText,
-				refinedQuestion: queryText,
-				sql: '',
-				validationResult: 'INVALID: Workflow execution failed',
-				rows: [],
-				executionError: errorMessage,
-				executionSuccess: false,
-			};
 		}
+
+		// Handle workflow non-success states
+		const errorMessage =
+			result.status === "failed" && "error" in result
+				? result.error.message
+				: `Workflow ${result.status}`;
+		return {
+			originalQuestion: queryText,
+			refinedQuestion: queryText,
+			sql: "",
+			validationResult: "INVALID: Workflow execution failed",
+			rows: [],
+			executionError: errorMessage,
+			executionSuccess: false,
+		};
 	}
 });

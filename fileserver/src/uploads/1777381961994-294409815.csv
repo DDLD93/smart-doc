@@ -1,0 +1,2 @@
+regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate
+CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,"123 Main Street, Lagos",Jane Doe,08098765432,Mother,O+,"Peanuts,Shellfish",Dr. Smith,Doctor,08011111111,2024-01-15

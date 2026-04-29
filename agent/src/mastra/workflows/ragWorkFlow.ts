@@ -1,24 +1,24 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { google } from "@ai-sdk/google";
-import { RuntimeContext } from "@mastra/core/di";
 import { Agent } from "@mastra/core/agent";
-import { ragRetrieverTool } from "../tools/ragRetriever";
+import { retrieveTopK } from "../tools/ragRetriever";
 
 // Agent for question refinement
 const questionRefinementAgent = new Agent({
+	id: "rag-question-refinement-agent",
 	name: "rag-question-refinement-agent",
 	description: "Refines natural language questions for better RAG retrieval",
 	instructions: "Refine the user's question for clarity and better semantic search. Focus on key concepts and search terms while preserving the original intent. Return only the refined question.",
-	model: google("gemini-2.5-flash"),
+	model: "google/gemini-2.5-flash",
 });
 
 // Agent for information synthesis
 const informationSynthesisAgent = new Agent({
+	id: "information-synthesis-agent",
 	name: "information-synthesis-agent",
 	description: "Synthesizes relevant information from search results into a coherent response",
 	instructions: "Synthesize the provided search results into a coherent, helpful response to the user's question. Include key information while maintaining accuracy and clarity.",
-	model: google("gemini-2.5-flash"),
+	model: "google/gemini-2.5-flash",
 });
 
 // Removed local vector search; using external HTTP RAG search tool instead
@@ -82,45 +82,7 @@ Return only the refined question.`;
 	},
 });
 
-// Step 3: RAG retriever via external fileserver tool
-// const httpSemanticSearchStep = createStep({
-// 	id: "http-semantic-search",
-// 	inputSchema: z.object({
-// 		originalQuestion: z.string(),
-// 		refinedQuestion: z.string(),
-// 		topK: z.number(),
-// 		filter: z.any().optional(),
-// 	}),
-// 	outputSchema: z.object({
-// 		originalQuestion: z.string(),
-// 		refinedQuestion: z.string(),
-// 		searchResults: z.array(z.any()),
-// 		relevantContext: z.string(),
-// 		sources: z.array(z.any()),
-// 	}),
-// 	execute: async ({ inputData }) => {
-// 		const { originalQuestion, refinedQuestion, topK, filter } = inputData;
-// 		const runtimeContext = new RuntimeContext();
-// 		const searchResult = await ragHttpSearchTool.execute({
-// 			context: { query: refinedQuestion, limit: topK, filter },
-// 			runtimeContext,
-// 		});
-// 		const results = Array.isArray(searchResult?.results) ? searchResult.results : [];
-// 		const relevantContext = results
-// 			.map((r: any) => r?.payload?.text)
-// 			.filter((t: any) => typeof t === "string" && t.trim().length > 0)
-// 			.join("\n\n");
-// 		return {
-// 			originalQuestion,
-// 			refinedQuestion,
-// 			searchResults: results,
-// 			relevantContext: relevantContext || "",
-// 			sources: results,
-// 		};
-// 	},
-// });
-
-// Step 3: RAG retriever via external fileserver tool
+// Step 3: Retrieve relevant chunks via Qdrant-backed tool.
 
 const ragRetrieverStep = createStep({
     id: "rag-retriever",
@@ -148,12 +110,7 @@ const ragRetrieverStep = createStep({
     }),
     execute: async ({ inputData }) => {
         const { originalQuestion, refinedQuestion, topK, filter } = inputData;
-        const runtimeContext = new RuntimeContext();
-		const retrieval = await ragRetrieverTool.execute({
-			context: { question: refinedQuestion, topK, filter },
-			runtimeContext,
-			tracingContext: {} as any,
-		});
+		const retrieval = await retrieveTopK(refinedQuestion, { topK, filter });
 
         const results = Array.isArray((retrieval as any)?.results) ? (retrieval as any).results : [];
         const searchResults = results as Array<{ fileId: string | number; filename?: string; originalName?: string; chunk: string; page?: number }>;
@@ -238,7 +195,7 @@ Provide a clear, accurate, and helpful response that directly answers the questi
 
 export const ragWorkflow = createWorkflow({
 	id: "rag-workflow",
-	description: "Complete RAG workflow: accept question, refine question, HTTP semantic search, and synthesize information",
+	description: "Complete RAG workflow: accept question, refine, retrieve context, and synthesize answer",
 	inputSchema: z.object({
 		question: z.string().describe("Natural language question to search for"),
 		topK: z.number().optional().describe("Number of results to retrieve (default: 10)"),

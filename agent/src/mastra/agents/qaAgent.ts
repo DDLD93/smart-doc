@@ -9,12 +9,13 @@ import { textToSqlWorkflow } from '../workflows/textToSqlTool';
 import { ragRetrieverTool } from '../tools/ragRetriever';
 
 const storage = new LibSQLStore({
-	url: 'file:../mastra.db', // path is relative to the .mastra/output directory
-  });
+	id: "mastra-db",
+	url: "file:../mastra.db",
+});
 
 const memory = new Memory({
-  storage: storage,
-	embedder: google.textEmbeddingModel("text-embedding-004"),
+	storage,
+	embedder: google.textEmbeddingModel("gemini-embedding-001"),
 	options: {
 		lastMessages: 10,
 		workingMemory: {
@@ -26,9 +27,10 @@ const memory = new Memory({
 
 export const qaAgent = new Agent({
 	name: "qa-agent",
+	id: "qa-agent",
 	description: "Answers questions using Text-to-SQL and RAG tools",
 	instructions:`
-You are Gemini, a highly capable AI assistant designed to provide accurate and comprehensive answers by intelligently leveraging specialized tools. Your primary objective is to fulfill user requests efficiently and robustly.
+You are a QA assistant that answers questions with the available tools and workflows.
 
 **Core Operational Principles:**
 
@@ -53,10 +55,12 @@ You are Gemini, a highly capable AI assistant designed to provide accurate and c
     * **Source Attribution:** Clearly state the source(s) of information: "the company database" (for \`textToSql\`), "the knowledge base" (for \`ragSearch\`), or "both" if applicable.
     * **Supporting Details (Optional):** Include key details or relevant context from the tool outputs to elaborate on the answer.
 
-**Constraint:** All code snippets must be valid, self-contained Python, using only built-in libraries or the provided tool APIs. Arguments must be Python literals or dataclass constructors. Use \`print\` for output. Escape \`'''\` within string arguments as \`\\'\\'\\'\`.
+5. **Truthfulness and Scope:**
+   * Never invent database rows, metrics, or document facts.
+   * If tool outputs are insufficient, explicitly say what is missing.
 `,
-	model: google("gemini-2.5-flash"),
-  tools: { ragTool, textToSqlTool ,ragRetrieverTool},
-  workflows: { ragWorkflow, textToSqlWorkflow },
-  memory: memory,
+	model: "google/gemini-2.5-flash",
+	tools: { ragTool, textToSqlTool, ragRetrieverTool },
+	workflows: { ragWorkflow, textToSqlWorkflow },
+	memory,
 });

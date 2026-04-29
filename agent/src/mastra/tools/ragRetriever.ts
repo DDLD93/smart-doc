@@ -5,25 +5,40 @@ import { embed } from "ai";
 import { QdrantVector } from '@mastra/qdrant'
  
 const qdrantUrl = process.env.QDRANT_URL;
-if (!qdrantUrl) {
-  throw new Error("QDRANT_URL environment variable is required");
-}
 const qdrantApiKey = process.env.QDRANT_API_KEY || "";
 
-const store = new QdrantVector({
-  url: qdrantUrl,
-  apiKey: qdrantApiKey,
-})
- 
-await store.createIndex({
-  indexName: "documents",
-  dimension: 3072,
-});
+let store: QdrantVector | null = null;
+let indexReady = false;
+
+async function getStore() {
+  if (!qdrantUrl) {
+    throw new Error("QDRANT_URL environment variable is required");
+  }
+
+  if (!store) {
+    store = new QdrantVector({
+      id: "rag-retriever-store",
+      url: qdrantUrl,
+      apiKey: qdrantApiKey,
+    });
+  }
+
+  if (!indexReady) {
+    await store.createIndex({
+      indexName: "documents",
+      dimension: 3072,
+    });
+    indexReady = true;
+  }
+
+  return store;
+}
 
 export async function retrieveTopK(
     question: string,
     options?: { topK?: number; collection?: string; filter?: unknown }
 ) {
+    const vectorStore = await getStore();
     const { embedding } = await embed({
         model: google.textEmbeddingModel('gemini-embedding-001'),
         value: question,
@@ -31,7 +46,7 @@ export async function retrieveTopK(
 
     const collection = options?.collection || "documents";
 
-    const results = await store.query({
+    const results = await vectorStore.query({
         indexName: collection,
         queryVector: embedding,
         topK: options?.topK ?? 5,
@@ -72,13 +87,8 @@ export const ragRetrieverTool = createTool({
             })
         ),
     }),
-    execute: async ({ context }) => {
-        const { question, topK, collection, filter } = context as {
-            question: string;
-            topK?: number;
-            collection?: string;
-            filter?: unknown;
-        };
+    execute: async (inputData, _context) => {
+        const { question, topK, collection, filter } = inputData;
         return await retrieveTopK(question, { topK, collection, filter });
     },
 });

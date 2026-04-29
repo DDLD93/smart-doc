@@ -27,16 +27,11 @@ export const ragHttpSearchTool = createTool({
     outputSchema: z.object({
         results: z.array(z.any()),
     }),
-    execute: async ({ context }) => {
-        const { query, limit, filter } = context as {
-            query: string;
-            limit?: number;
-            filter?: unknown;
-            baseUrl?: string;
-        };
+    execute: async (inputData, _context) => {
+        const { query, limit, filter, baseUrl } = inputData;
 
-        const baseUrl = (context as any).baseUrl || process.env.FILESERVER_BASE_URL || "http://localhost:3000";
-        const url = `${baseUrl.replace(/\/$/, "")}/rag/search`;
+        const resolvedBaseUrl = baseUrl || process.env.FILESERVER_BASE_URL || "http://localhost:3000";
+        const url = `${resolvedBaseUrl.replace(/\/$/, "")}/rag/search`;
 
         const response = await fetch(url, {
             method: "POST",

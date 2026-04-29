@@ -1,0 +1,36 @@
+services:
+  fileserver:
+    build:
+      context: ./fileserver
+    image: smart-doc/fileserver:latest
+    container_name: smart-doc-fileserver
+    env_file:
+      - ./.env
+    environment:
+      PORT: "3000"
+      SOCKET_CORS_ORIGIN: "*"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  agent:
+    build:
+      context: ./agent
+    image: smart-doc/agent:latest
+    container_name: smart-doc-agent
+    env_file:
+      - ./.env
+    environment:
+      PORT: "4111"
+      FILESERVER_BASE_URL: "http://fileserver:3000"
+    ports:
+      - "4111:4111"
+    depends_on:
+      - fileserver
+    restart: unless-stopped

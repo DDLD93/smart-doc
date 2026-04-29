@@ -3,27 +3,30 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
-const fs = require('fs');
-
-// Database setup
-const db = require('./connection/jsondb.connection');
+const http = require('http');
+const { Server } = require('socket.io');
+const { initializeJobEvents, joinJobRoom } = require('./realtime/jobEvents');
+const { startIngestWorker } = require('./jobs/ingestWorker');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const UPLOAD_PATH = path.join(__dirname, 'uploads');
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: process.env.SOCKET_CORS_ORIGIN || '*',
+        methods: ['GET', 'POST'],
+    },
+});
+
+initializeJobEvents(io);
+io.on('connection', (socket) => {
+    joinJobRoom(socket);
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Ensure uploads directory exists
-if (!fs.existsSync(UPLOAD_PATH)) {
-    fs.mkdirSync(UPLOAD_PATH, { recursive: true });
-}
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static(UPLOAD_PATH));
 
 // Serve public UI
 app.use(express.static(path.join(__dirname, 'public')));
@@ -32,10 +35,12 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-const fileRoutes = require('./route/file.route')(UPLOAD_PATH);
+const fileRoutes = require('./route/file.route')();
 app.use('/files', fileRoutes);
 const ragRoutes = require('./route/rag.route');
 app.use('/rag', ragRoutes);
+const jobsRoutes = require('./route/jobs.route');
+app.use('/jobs', jobsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -62,8 +67,12 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, async () => {
     console.log(`File server running on http://localhost:${PORT}`);
-    console.log(`Upload directory: ${UPLOAD_PATH}`);
+    try {
+        await startIngestWorker();
+    } catch (error) {
+        console.error('[Server] failed to start ingest worker:', error.message);
+    }
 });
 

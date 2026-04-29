@@ -1,31 +1,33 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
 import { PostgresStore } from "@mastra/pg";
 
 // Agent for question refinement
 const questionRefinementAgent = new Agent({
+	id: "question-refinement-agent",
 	name: "question-refinement-agent",
 	description: "Refines natural language questions for clarity and better SQL generation",
 	instructions: "Refine the user's question for grammar and clarity while preserving the original intent. Return only the refined question.",
-	model: google("gemini-2.5-flash"),
+	model: "google/gemini-2.5-flash",
 });
 
 // Agent for SQL generation
 const sqlGenerationAgent = new Agent({
+	id: "sql-generation-agent",
 	name: "sql-generation-agent",
 	description: "Generates SQL queries from refined natural language questions",
 	instructions: "You translate refined natural language questions into a single SQL statement valid for PostgreSQL. Output ONLY SQL. Use SELECT by default; never DROP/DELETE/UPDATE without explicit permission.",
-	model: google("gemini-2.5-flash"),
+	model: "google/gemini-2.5-flash",
 });
 
 // Agent for SQL validation
 const sqlValidationAgent = new Agent({
+	id: "sql-validation-agent",
 	name: "sql-validation-agent", 
 	description: "Validates SQL queries for correctness and safety",
 	instructions: "Review the SQL query for correctness, safety, and PostgreSQL compatibility. Return 'VALID' if safe to execute, or 'INVALID: [reason]' if not. Focus on preventing destructive operations and syntax errors.",
-	model: google("gemini-2.5-flash"),
+	model: "google/gemini-2.5-flash",
 });
 
 // Step 1: Accept natural language question
@@ -284,7 +286,6 @@ const executeQueryStep = createStep({
 		
 		// Execute the validated SQL
 		try {
-			console.log({connectionString: process.env.POSTGRES_CONNECTION_STRING })
 			const pg = new PostgresStore({ connectionString: process.env.POSTGRES_CONNECTION_STRING });
 			await pg.init();
 			const rows = await pg.db.any(generatedSql);

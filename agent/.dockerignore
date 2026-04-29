@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+.git
+.gitignore
+.DS_Store
+Dockerfile
+.dockerignore
+.mastra
+dist
+*.db
+*.db-*
+output.txt
+*.log
+.cursor
+skills

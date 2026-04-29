@@ -18,11 +18,11 @@ export const ragTool = createTool({
 		sources: z.array(z.any()).describe("Source documents and metadata"),
 		searchSuccess: z.boolean().describe("Whether the search found relevant information")
 	}),
-	execute: async ({ context }) => {
-		const { queryText, topK, filter } = context;
+	execute: async (inputData, _context) => {
+		const { queryText, topK, filter } = inputData;
 		
 		// Call the comprehensive workflow that implements all 5 steps from @project.mdc
-		const workflowRun = ragWorkflow.createRun();
+		const workflowRun = await ragWorkflow.createRun();
 		const result = await workflowRun.start({
 			inputData: {
 				question: queryText,
@@ -34,20 +34,20 @@ export const ragTool = createTool({
 		// Extract the actual result data from the workflow result
 		if (result.status === 'success') {
 			return result.result;
-		} else {
-			// Handle workflow failure
-			const errorMessage = result.status === 'failed' && 'error' in result 
-				? result.error.message 
-				: `Workflow ${result.status}`;
-				
-			return {
-				originalQuestion: queryText,
-				refinedQuestion: queryText,
-				relevantContext: "",
-				synthesizedResponse: `RAG search failed: ${errorMessage}`,
-				sources: [],
-				searchSuccess: false,
-			};
 		}
+
+		// Handle workflow non-success states
+		const errorMessage =
+			result.status === "failed" && "error" in result
+				? result.error.message
+				: `Workflow ${result.status}`;
+		return {
+			originalQuestion: queryText,
+			refinedQuestion: queryText,
+			relevantContext: "",
+			synthesizedResponse: `RAG search failed: ${errorMessage}`,
+			sources: [],
+			searchSuccess: false,
+		};
 	}
 });

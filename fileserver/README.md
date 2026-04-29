@@ -1,18 +1,15 @@
 # AI Document Processor
 
-A modern document processing system with AI-powered embeddings, built with Express.js, Qdrant, and Google Gemini. Features a clean shadcn/ui-inspired interface with real-time progress tracking.
+Document processing backend with S3-compatible object storage, Prisma/Postgres metadata, asynchronous ingestion over NATS JetStream, Qdrant vector storage, and Socket.IO job updates for the UI.
 
 ## Features
 
-- 🎨 **Modern UI** - Clean, shadcn/ui-inspired interface with responsive design
-- 📤 **File Upload** - Drag & drop or click to upload (PDF, DOC, DOCX, TXT, CSV)
-- 🔄 **Real-time Progress** - Step-by-step progress tracking with detailed feedback
-- 🤖 **AI Processing** - Automatic text extraction, chunking, and embedding generation
-- 🗄️ **Vector Storage** - Store embeddings in Qdrant for semantic search
-- ⚙️ **Configurable** - Adjust chunk size and overlap per upload
-- 🔒 **Transactional** - Automatic rollback on failure
-- 📊 **Processing Stats** - View detailed statistics after processing
-- 🎯 **Error Handling** - Clear, actionable error messages
+- Upload files to S3-compatible storage (R2/MinIO/Spaces compatible)
+- Persist file + ingestion job state in Postgres via Prisma
+- Queue ingestion jobs in JetStream with retry/backoff support
+- Real-time job updates in the browser via Socket.IO
+- AI extraction/chunking/embeddings with Google Gemini + Qdrant
+- Compensating rollback: if DB write fails after S3 upload, object is deleted
 
 ## Installation
 
@@ -21,7 +18,28 @@ A modern document processing system with AI-powered embeddings, built with Expre
 npm install
 ```
 
-2. Start the server:
+2. Configure environment variables. The fileserver and agent share a single
+   env file at the repository root. Copy `../sample.env` to `../.env` and fill in:
+   - `POSTGRES_CONNECTION_STRING`
+   - `S3_*`
+   - `NATS_*`
+   - `GOOGLE_GENERATIVE_AI_API_KEY`
+   - `QDRANT_*`
+
+   When running via `docker compose up` from the repo root, the root `.env` is
+   loaded automatically for both services.
+
+3. Generate Prisma client:
+```bash
+npm run prisma:generate
+```
+
+4. Apply migrations:
+```bash
+npm run prisma:deploy
+```
+
+5. Start the server:
 ```bash
 npm start
 ```
@@ -35,11 +53,11 @@ The server will run on `http://localhost:3000`
 
 ### File Operations
 
-#### Upload File
-- **POST** `/upload`
+#### Upload File (queue ingestion)
+- **POST** `/files/upload`
 - Content-Type: `multipart/form-data`
-- Body: `file` (the file to upload)
-- Response: File metadata with ID and URL
+- Body: `file`, optional `chunkSize`, `chunkOverlap`
+- Response: `202` with `{ file, job }`
 
 #### View All Files
 - **GET** `/files`
@@ -51,11 +69,24 @@ The server will run on `http://localhost:3000`
 
 #### Download File
 - **GET** `/files/:id/download`
-- Response: File download
+- Response: pre-signed S3 URL
 
 #### Delete File
 - **DELETE** `/files/:id`
-- Response: Confirmation of file deletion
+- Response: marks file as deleted, removes S3 object, and best-effort removes vectors
+
+#### File Jobs
+- **GET** `/files/:id/jobs`
+- Response: ingestion jobs for one file
+
+#### Job Status
+- **GET** `/jobs/:jobId`
+- Response: current status + attempts + errors
+
+### RAG Operations
+
+- **POST** `/rag/search` semantic search in Qdrant
+- **GET** `/rag/status/:fileId` vector count by file
 
 ## Supported File Types
 
@@ -63,17 +94,17 @@ The server will run on `http://localhost:3000`
 - Documents: PDF, DOC, DOCX, XLS, XLSX
 - Text: TXT, CSV, JSON
 
-## File Storage
+## Storage
 
-- Files are stored in `src/uploads/` directory
-- Metadata is stored in `fileDB.json` (created automatically)
-- Files are accessible via `/uploads/filename` URL
+- Files: S3-compatible object storage
+- Metadata and jobs: Postgres via Prisma
+- Vectors: Qdrant
 
 ## Example Usage
 
-### Upload a file using curl:
+### Upload a file:
 ```bash
-curl -X POST -F "file=@example.pdf" http://localhost:3000/upload
+curl -X POST -F "file=@example.pdf" http://localhost:3000/files/upload
 ```
 
 ### Get all files:
@@ -88,7 +119,7 @@ curl http://localhost:3000/files/1234567890
 
 ### Download file:
 ```bash
-curl -O http://localhost:3000/files/1234567890/download
+curl http://localhost:3000/files/1234567890/download
 ```
 
 ### Delete file:
@@ -104,9 +135,11 @@ The API includes comprehensive error handling for:
 - File size limits exceeded
 - Internal server errors
 
-## Security Notes
+## Real-time UI Updates
 
-- File type validation is implemented
-- File size is limited to 10MB
-- Files are stored with unique names to prevent conflicts
-- CORS is enabled for cross-origin requests
+The web UI subscribes to Socket.IO room `job:{jobId}` and receives:
+- `job.queued`
+- `job.progress`
+- `job.retry`
+- `job.completed`
+- `job.failed`

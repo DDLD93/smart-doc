@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!sample.env
+.git
+.gitignore
+.DS_Store
+Dockerfile
+.dockerignore
+src/uploads/*
+!src/uploads/.gitkeep
+fileDB.json
+*.log
+README.md
+QUICK_START.md

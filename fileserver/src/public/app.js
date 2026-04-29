@@ -33,9 +33,11 @@ const successStats = document.getElementById('successStats');
 // State
 let selectedFile = null;
 let isProcessing = false;
+let socket = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    socket = io();
     loadFiles();
     setupEventListeners();
 });
@@ -263,8 +265,11 @@ async function handleUpload() {
             throw new Error(result.error);
         }
         
-        // Process steps based on result
-        await processStepsFromResult(result);
+        if (!result.job?.id) {
+            throw new Error('Upload succeeded but no job was created');
+        }
+
+        await subscribeToJob(result.job.id, result.file.id, result.file.name, result.file.size);
         
         // Show success
         showSuccess(result);
@@ -306,37 +311,99 @@ async function handleUpload() {
     }
 }
 
-async function processStepsFromResult(result) {
-    const steps = result.processing?.steps || [];
-    
-    // Map backend step names to UI step IDs
-    const stepMapping = {
-        'file_save': 'upload',
-        'text_extraction': 'extract',
-        'text_chunking': 'chunk',
-        'embeddings': 'embed',
-        'vector_storage': 'store'
-    };
-    
-    // Process each step with proper timing
-    for (let i = 0; i < steps.length; i++) {
-        const backendStep = steps[i];
-        const uiStepId = stepMapping[backendStep.step];
-        
-        if (!uiStepId) continue;
-        
-        // Mark as active
-        updateStepStatus(uiStepId, 'active', getStepActiveMessage(backendStep.step));
-        updateProgress(20 + (i * 16), getStepProgressMessage(backendStep.step));
-        await delay(300);
-        
-        // Mark as completed with details
-        const completedMessage = getStepCompletedMessage(backendStep);
-        updateStepStatus(uiStepId, 'completed', completedMessage);
-        await delay(200);
+async function subscribeToJob(jobId, fileId, fileName, fileSize) {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(async () => {
+            try {
+                const status = await fetch(`/jobs/${jobId}`);
+                const payload = await status.json();
+                if (!status.ok || payload.error) {
+                    reject(new Error(payload.error || 'Timed out waiting for job updates'));
+                    return;
+                }
+                handleJobSnapshot(payload.job, fileName, fileSize);
+                if (payload.job.status === 'SUCCEEDED') resolve();
+                else reject(new Error(payload.job.lastErrorMessage || 'Ingestion still pending; refresh soon.'));
+            } catch (error) {
+                reject(error);
+            }
+        }, 180000);
+
+        const onQueued = (event) => {
+            if (event.jobId !== jobId) return;
+            updateStepStatus('upload', 'completed', 'Uploaded to storage');
+            updateProgress(20, 'Queued for ingestion...');
+        };
+
+        const onProgress = (event) => {
+            if (event.jobId !== jobId) return;
+            const map = { extract: 'extract', chunk: 'chunk', embed: 'embed', store: 'store', upload: 'upload' };
+            const uiStep = map[event.step];
+            if (!uiStep) return;
+            updateStepStatus(uiStep, event.status === 'completed' ? 'completed' : 'active', event.message);
+            updateProgress(event.percentage || 0, event.message || 'Processing...');
+        };
+
+        const onRetry = (event) => {
+            if (event.jobId !== jobId) return;
+            updateProgress(85, `Retrying in ${Math.ceil((event.retryInMs || 0) / 1000)}s...`);
+        };
+
+        const onCompleted = async (event) => {
+            if (event.jobId !== jobId) return;
+            clearTimeout(timeout);
+            detach();
+            updateProgress(100, 'Complete!');
+            showSuccess({
+                file: { id: fileId, name: fileName, size: fileSize },
+                processing: {
+                    stats: {
+                        vectorCount: event.stats?.vectorCount || 0,
+                    },
+                },
+            });
+            await loadFiles();
+            resolve();
+        };
+
+        const onFailed = (event) => {
+            if (event.jobId !== jobId) return;
+            clearTimeout(timeout);
+            detach();
+            markCurrentStepAsError();
+            reject(new Error(event.error || 'Ingestion failed'));
+        };
+
+        function detach() {
+            socket.off('job.queued', onQueued);
+            socket.off('job.progress', onProgress);
+            socket.off('job.retry', onRetry);
+            socket.off('job.completed', onCompleted);
+            socket.off('job.failed', onFailed);
+        }
+
+        socket.on('job.queued', onQueued);
+        socket.on('job.progress', onProgress);
+        socket.on('job.retry', onRetry);
+        socket.on('job.completed', onCompleted);
+        socket.on('job.failed', onFailed);
+        socket.emit('job:subscribe', { jobId });
+    });
+}
+
+function handleJobSnapshot(job, fileName, fileSize) {
+    if (job.status === 'SUCCEEDED') {
+        updateProgress(100, 'Complete!');
+        showSuccess({
+            file: { name: fileName, size: fileSize },
+            processing: { stats: { vectorCount: 0 } },
+        });
+        return;
     }
-    
-    updateProgress(100, 'Complete!');
+    if (job.status === 'FAILED') {
+        throw new Error(job.lastErrorMessage || 'Ingestion failed');
+    }
+    updateProgress(40, 'Job still running, check back shortly.');
 }
 
 function getStepActiveMessage(stepName) {
@@ -454,11 +521,11 @@ function showSuccess(result) {
     
     successStats.innerHTML = `
         <div class="stat">
-            <div class="stat-value">${stats.textLength?.toLocaleString() || 0}</div>
+            <div class="stat-value">${stats.textLength?.toLocaleString() || '-'}</div>
             <div class="stat-label">Characters</div>
         </div>
         <div class="stat">
-            <div class="stat-value">${stats.chunkCount || 0}</div>
+            <div class="stat-value">${stats.chunkCount || '-'}</div>
             <div class="stat-label">Chunks</div>
         </div>
         <div class="stat">

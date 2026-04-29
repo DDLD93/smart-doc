@@ -1,32 +1,9 @@
 const express = require('express');
-
-const fileController = require('../controller/file.controller');
-const ragService = require('../service/rag.service');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const fileController = require('../controller/file.controller');
 
-
-
-
-module.exports = (PATH) => {
-
-    // Multer configuration for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = PATH;
-        // Ensure uploads directory exists
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename with timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
+module.exports = () => {
+const storage = multer.memoryStorage();
 
 // File filter to allow only certain file types
 const fileFilter = (req, file, cb) => {
@@ -62,25 +39,16 @@ const upload = multer({
                 return res.status(400).json({ error: 'No file uploaded' });
             }
             
-            // Update RAG service configuration if provided
-            const { chunkSize, chunkOverlap } = req.body;
-            if (chunkSize) {
-                ragService.chunkSize = parseInt(chunkSize);
-            }
-            if (chunkOverlap) {
-                ragService.chunkOverlap = parseInt(chunkOverlap);
-            }
-            
             const data = req.body;
-            const result = await fileController.addFile(file, data, PATH);
+            const result = await fileController.addFile(file, data);
             
             if (result.error) {
                 console.log(`[API] Upload failed: ${result.error}`);
                 return res.status(400).json(result);
             }
             
-            console.log(`[API] Uploaded ${file.originalname} -> ${result.file.id}`);
-            res.status(200).json(result);
+            console.log(`[API] Uploaded ${file.originalname} -> ${result.file.id}, job=${result.job.id}`);
+            res.status(202).json(result);
         } catch (error) {
             console.error('[API] Upload error:', error);
             res.status(500).json({ error: 'Failed to upload file: ' + error.message });
@@ -122,30 +90,15 @@ const upload = multer({
             res.status(500).json({ error: 'Failed to download file' });
         }
     });
-    api.post('/:id/ingest', async (req, res) => {
+    api.get('/:id/jobs', async (req, res) => {
         try {
-            console.log(`[API] POST /files/${req.params.id}/ingest`);
-            const fileResult = await fileController.getFile(req.params.id);
-            if (fileResult?.error) return res.status(404).json(fileResult);
-            const fullPath = path.join(__dirname, '..', 'uploads', fileResult.filename);
-            if (!fs.existsSync(fullPath)) {
-                return res.status(404).json({ error: 'File not found on disk' });
-            }
-            const buffer = fs.readFileSync(fullPath);
-            const meta = { 
-                fileId: fileResult.id, 
-                filename: fileResult.filename, 
-                originalName: fileResult.name || fileResult.filename,
-                mimetype: fileResult.type 
-            };
-            const out = await ragService.ingestFileBuffer(buffer, meta);
-            console.log(`[API] Ingested fileId=${fileResult.id} inserted=${out.inserted}`);
-            res.status(200).json({ message: 'Ingested', ...out });
+            const out = await fileController.getJobs(req.params.id);
+            res.status(200).json(out);
         } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: 'Failed to ingest file '+ error.message });
+            res.status(500).json({ error: 'Failed to load file jobs' });
         }
     });
+
     return api;
 };
 

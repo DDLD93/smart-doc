@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRES_CONNECTION_STRING")
 }
 
 model Patient {
@@ -86,4 +86,94 @@ model Hcpcs {
   shortDescription  String? @map("short_description")
 
   @@map("d_hcpcs")
+}
+
+enum FileStatus {
+  PENDING_INGEST
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+enum IngestJobStatus {
+  QUEUED
+  RUNNING
+  RETRY_SCHEDULED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum IngestAttemptStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model FileAsset {
+  id             String     @id @db.VarChar(32)
+  originalName   String
+  filename       String
+  mimeType       String
+  sizeBytes      BigInt
+  bucket         String
+  objectKey      String     @unique
+  fileUrl        String
+  checksumSha256 String?
+  status         FileStatus @default(PENDING_INGEST)
+  uploadedAt     DateTime   @default(now())
+  deletedAt      DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  jobs IngestJob[]
+
+  @@index([uploadedAt])
+  @@index([status])
+  @@map("file_assets")
+}
+
+model IngestJob {
+  id               String           @id @default(cuid())
+  fileId           String           @db.VarChar(32)
+  status           IngestJobStatus  @default(QUEUED)
+  chunkSize        Int
+  chunkOverlap     Int
+  attemptCount     Int              @default(0)
+  maxAttempts      Int              @default(3)
+  queuedAt         DateTime         @default(now())
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  lastErrorCode    String?
+  lastErrorMessage String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  file     FileAsset       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  attempts IngestAttempt[]
+
+  @@index([status, queuedAt])
+  @@index([fileId])
+  @@map("ingest_jobs")
+}
+
+model IngestAttempt {
+  id           String             @id @default(cuid())
+  jobId        String
+  attemptNo    Int
+  status       IngestAttemptStatus
+  startedAt    DateTime           @default(now())
+  finishedAt   DateTime?
+  errorCode    String?
+  errorMessage String?
+  backoffMs    Int?
+  createdAt    DateTime           @default(now())
+
+  job IngestJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, attemptNo])
+  @@index([jobId])
+  @@map("ingest_attempts")
 }
