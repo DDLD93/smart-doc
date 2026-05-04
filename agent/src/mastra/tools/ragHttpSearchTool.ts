@@ -30,7 +30,10 @@ export const ragHttpSearchTool = createTool({
     execute: async (inputData, _context) => {
         const { query, limit, filter, baseUrl } = inputData;
 
-        const resolvedBaseUrl = baseUrl || process.env.FILESERVER_BASE_URL || "http://localhost:3000";
+        const resolvedBaseUrl = process.env.FILESERVER_BASE_URL;
+        if (!resolvedBaseUrl) {
+            throw new Error("FILESERVER_BASE_URL is not set");
+        }
         const url = `${resolvedBaseUrl.replace(/\/$/, "")}/rag/search`;
 
         const response = await fetch(url, {
