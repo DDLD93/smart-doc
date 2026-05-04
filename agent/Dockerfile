@@ -10,10 +10,8 @@ RUN npm ci --include=dev
 
 COPY src ./src
 
-RUN npm run build
-
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 
 EXPOSE 4111
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
