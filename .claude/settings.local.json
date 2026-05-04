@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\"; $env:POSTGRES_CONNECTION_STRING=\"postgresql://dummy:dummy@localhost:5432/dummy\"; npx prisma validate 2>&1)"
+    ]
+  }
+}

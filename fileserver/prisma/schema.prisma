@@ -102,3 +102,530 @@ model IngestAttempt {
   @@index([jobId])
   @@map("ingest_attempts")
 }
+
+// =========================================================
+// EHR / EMR ENUMS
+// =========================================================
+
+enum Sex {
+  MALE
+  FEMALE
+  INTERSEX
+  UNKNOWN
+}
+
+enum BloodGroup {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+  UNKNOWN
+}
+
+enum Genotype {
+  AA
+  AS
+  SS
+  AC
+  SC
+  UNKNOWN
+}
+
+enum EncounterType {
+  OUTPATIENT
+  INPATIENT
+  EMERGENCY
+  TELEMEDICINE
+}
+
+enum EncounterDisposition {
+  DISCHARGED
+  ADMITTED
+  REFERRED
+  TRANSFERRED
+  DECEASED
+  ONGOING
+}
+
+enum SymptomSeverity {
+  MILD
+  MODERATE
+  SEVERE
+  CRITICAL
+}
+
+enum AllergySeverity {
+  LOW
+  MODERATE
+  HIGH
+  LIFE_THREATENING
+}
+
+enum AllergyStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum Chronicity {
+  ACUTE
+  CHRONIC
+  RECURRENT
+  RESOLVED
+}
+
+enum DiagnosisType {
+  PRIMARY
+  SECONDARY
+  DIFFERENTIAL
+}
+
+enum DiagnosisCertainty {
+  SUSPECTED
+  CONFIRMED
+  RULED_OUT
+}
+
+enum ClinicalNoteType {
+  SOAP
+  PROGRESS
+  OPERATIVE
+  DISCHARGE
+  CONSULTATION
+  NURSING
+}
+
+enum MedicationRoute {
+  ORAL
+  INTRAVENOUS
+  INTRAMUSCULAR
+  SUBCUTANEOUS
+  TOPICAL
+  INHALATION
+  RECTAL
+  OPHTHALMIC
+  OTIC
+  NASAL
+  OTHER
+}
+
+enum LabPriority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
+enum LabResultStatus {
+  PENDING
+  COMPLETED
+  CORRECTED
+  CANCELLED
+}
+
+enum ImagingModality {
+  XRAY
+  CT
+  MRI
+  ULTRASOUND
+  PET
+  MAMMOGRAPHY
+  FLUOROSCOPY
+  ECG
+  ECHO
+}
+
+enum CarePlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum OutcomeStatus {
+  IMPROVED
+  STABLE
+  DETERIORATED
+  RECOVERED
+  DECEASED
+}
+
+// =========================================================
+// EHR / EMR MODELS
+// =========================================================
+
+model Patient {
+  id                  String     @id @default(cuid())
+  medicalRecordNumber String     @unique
+  firstName           String
+  middleName          String?
+  lastName            String
+  dateOfBirth         DateTime   @db.Date
+  sex                 Sex
+  bloodGroup          BloodGroup?
+  genotype            Genotype?
+  baselineHeightCm    Float?
+  baselineWeightKg    Float?
+  deceased            Boolean    @default(false)
+  deceasedDate        DateTime?  @db.Date
+  organDonor          Boolean?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  encounters    Encounter[]
+  allergies     Allergy[]
+  medicalHistory MedicalHistory[]
+  carePlans     CarePlan[]
+  immunizations Immunization[]
+  observations  Observation[]
+
+  @@index([medicalRecordNumber])
+  @@index([lastName, firstName])
+  @@map("patients_ehr")
+}
+
+model Encounter {
+  id                   String               @id @default(cuid())
+  patientId            String
+  encounterType        EncounterType
+  encounterDateTime    DateTime
+  chiefComplaint       String
+  clinicalSummary      String?
+  attendingClinicianId String?
+  disposition          EncounterDisposition
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
+
+  patient        Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  symptoms       Symptom[]
+  vitals         VitalSigns[]
+  diagnoses      Diagnosis[]
+  clinicalNotes  ClinicalNote[]
+  medications    Medication[]
+  labOrders      LabOrder[]
+  imagingOrders  ImagingOrder[]
+  procedures     Procedure[]
+  outcomes       ClinicalOutcome[]
+  observations   Observation[]
+
+  @@index([patientId])
+  @@index([encounterDateTime])
+  @@map("encounters")
+}
+
+model Symptom {
+  id                  String          @id @default(cuid())
+  encounterId         String
+  symptomCode         String?
+  symptomDescription  String
+  onsetDate           DateTime?       @db.Date
+  severity            SymptomSeverity?
+  durationDays        Int?
+  progression         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  deletedAt           DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@map("symptoms")
+}
+
+model VitalSigns {
+  id                     String   @id @default(cuid())
+  encounterId            String
+  recordedAt             DateTime
+  temperatureCelsius     Float?
+  pulseRateBpm           Int?
+  respiratoryRate        Int?
+  bpSystolic             Int?
+  bpDiastolic            Int?
+  oxygenSaturationPercent Float?
+  bloodGlucoseMgDl       Float?
+  weightKg               Float?
+  heightCm               Float?
+  bmi                    Float?
+  painScore              Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  deletedAt              DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@index([recordedAt])
+  @@map("vital_signs")
+}
+
+model Allergy {
+  id        String          @id @default(cuid())
+  patientId String
+  allergen  String
+  reaction  String
+  severity  AllergySeverity
+  onsetDate DateTime?       @db.Date
+  status    AllergyStatus
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("allergies")
+}
+
+model MedicalHistory {
+  id             String     @id @default(cuid())
+  patientId      String
+  conditionCode  String?
+  conditionName  String
+  diagnosisDate  DateTime?  @db.Date
+  resolutionDate DateTime?  @db.Date
+  chronicity     Chronicity?
+  familyHistory  Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("medical_history")
+}
+
+model Diagnosis {
+  id            String             @id @default(cuid())
+  encounterId   String
+  diagnosisCode String?
+  diagnosisName String
+  diagnosisType DiagnosisType
+  certainty     DiagnosisCertainty
+  diagnosedAt   DateTime
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  encounter  Encounter  @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  carePlans  CarePlan[]
+
+  @@index([encounterId])
+  @@map("diagnoses")
+}
+
+model ClinicalNote {
+  id                 String          @id @default(cuid())
+  encounterId        String
+  noteType           ClinicalNoteType
+  noteText           String
+  authorClinicianId  String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  deletedAt          DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@map("clinical_notes")
+}
+
+model Medication {
+  id          String          @id @default(cuid())
+  encounterId String
+  drugCode    String?
+  drugName    String
+  dosage      String
+  route       MedicationRoute
+  frequency   String
+  duration    String?
+  indication  String?
+  startDate   DateTime?       @db.Date
+  endDate     DateTime?       @db.Date
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@map("medications")
+}
+
+model LabOrder {
+  id           String      @id @default(cuid())
+  encounterId  String
+  testCode     String?
+  testName     String
+  specimenType String?
+  priority     LabPriority
+  orderedAt    DateTime
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  encounter Encounter   @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  results   LabResult[]
+
+  @@index([encounterId])
+  @@map("lab_orders")
+}
+
+model LabResult {
+  id             String         @id @default(cuid())
+  labOrderId     String
+  analyteCode    String?
+  analyteName    String
+  resultValue    String
+  unit           String?
+  referenceRange String?
+  abnormalFlag   Boolean?
+  resultStatus   LabResultStatus
+  resultedAt     DateTime
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  labOrder LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([labOrderId])
+  @@map("lab_results")
+}
+
+model ImagingOrder {
+  id                 String         @id @default(cuid())
+  encounterId        String
+  modality           ImagingModality
+  bodySite           String?
+  clinicalIndication String?
+  orderedAt          DateTime
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  deletedAt          DateTime?
+
+  encounter Encounter      @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  reports   ImagingReport[]
+
+  @@index([encounterId])
+  @@map("imaging_orders")
+}
+
+model ImagingReport {
+  id             String   @id @default(cuid())
+  imagingOrderId String
+  findings       String
+  impression     String?
+  radiologistId  String?
+  reportedAt     DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  imagingOrder ImagingOrder @relation(fields: [imagingOrderId], references: [id], onDelete: Cascade)
+
+  @@index([imagingOrderId])
+  @@map("imaging_reports")
+}
+
+model Procedure {
+  id            String   @id @default(cuid())
+  encounterId   String
+  procedureCode String?
+  procedureName String
+  indication    String?
+  findings      String?
+  complications String?
+  outcome       String?
+  performedAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@map("procedures")
+}
+
+model CarePlan {
+  id              String        @id @default(cuid())
+  patientId       String
+  diagnosisId     String?
+  goals           String[]
+  interventions   String[]
+  monitoringPlan  String?
+  reviewDate      DateTime?     @db.Date
+  status          CarePlanStatus
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  diagnosis Diagnosis? @relation(fields: [diagnosisId], references: [id])
+
+  @@index([patientId])
+  @@map("care_plans")
+}
+
+model Immunization {
+  id                 String   @id @default(cuid())
+  patientId          String
+  vaccineCode        String?
+  vaccineName        String
+  doseNumber         Int?
+  administrationDate DateTime @db.Date
+  adverseReaction    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  deletedAt          DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("immunizations")
+}
+
+model ClinicalOutcome {
+  id               String        @id @default(cuid())
+  encounterId      String
+  outcomeType      String?
+  outcomeStatus    OutcomeStatus
+  recoveryStatus   String?
+  complicationFlag Boolean?
+  mortalityFlag    Boolean?
+  recordedAt       DateTime
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+  @@map("clinical_outcomes")
+}
+
+model Observation {
+  id              String   @id @default(cuid())
+  patientId       String
+  encounterId     String?
+  observationType String
+  observationCode String?
+  value           String
+  unit            String?
+  interpretation  String?
+  observedAt      DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  patient   Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounter Encounter? @relation(fields: [encounterId], references: [id])
+
+  @@index([patientId])
+  @@index([encounterId])
+  @@map("observations")
+}

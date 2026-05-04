@@ -13,7 +13,11 @@
     "import-csv": "node src/scripts/import-csv.js",
     "db:setup": "prisma generate && prisma migrate dev && node src/scripts/import-csv.js",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "seed": "node prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "keywords": [
     "file-server",

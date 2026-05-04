@@ -720,11 +720,198 @@ body {
     color: hsl(var(--foreground));
 }
 
+/* Patients UI */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.patients-toolbar {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem;
+}
+
+.patients-search-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+    width: 100%;
+    margin-bottom: -0.5rem;
+}
+
+.patients-search-input {
+    max-width: 22rem;
+    flex: 1;
+    min-width: 12rem;
+}
+
+.patients-result-meta {
+    font-size: 0.8125rem;
+    margin-left: auto;
+    align-self: center;
+}
+
+.patients-split {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.patients-table-wrap {
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+}
+
+.table-row-clickable {
+    cursor: pointer;
+}
+
+.table tbody tr.table-row-clickable.is-selected {
+    background-color: hsl(var(--accent));
+}
+
+.table tbody tr.table-row-clickable.is-selected:hover {
+    background-color: hsl(var(--accent));
+}
+
+.patients-detail-body {
+    min-height: 14rem;
+}
+
+.patients-detail-placeholder {
+    padding: 2rem 1.5rem;
+}
+
+.patients-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.patients-detail-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+}
+
+.patients-detail-sub {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.patients-detail-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.patient-count-row {
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.patient-count-chip strong {
+    font-weight: 600;
+    color: hsl(var(--foreground));
+}
+
+.patient-dl {
+    margin: 0;
+    padding: 0 0 0.5rem;
+}
+
+.patient-dl-row {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 1rem;
+    padding: 0.625rem 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.patient-dl-row:last-child {
+    border-bottom: none;
+}
+
+.patient-dl-row dt {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    margin: 0;
+}
+
+.patient-dl-row dd {
+    font-size: 0.875rem;
+    margin: 0;
+    color: hsl(var(--foreground));
+}
+
+.badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    line-height: 1.25;
+}
+
+.badge-muted {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+}
+
+.badge-destructive {
+    background-color: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+}
+
+.badge-accent {
+    background-color: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+}
+
+.text-muted {
+    color: hsl(var(--muted-foreground));
+}
+
+.font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.8125rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .patients-split {
+        grid-template-columns: 1fr;
+    }
+
+    .patients-result-meta {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .patient-dl-row {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
     }
 
     .form-row {

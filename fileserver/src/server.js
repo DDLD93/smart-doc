@@ -41,6 +41,8 @@ const ragRoutes = require('./route/rag.route');
 app.use('/rag', ragRoutes);
 const jobsRoutes = require('./route/jobs.route');
 app.use('/jobs', jobsRoutes);
+const patientRoutes = require('./route/patient.route');
+app.use('/api/patients', patientRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div>
+                    <h1 class="header-title">Patients</h1>
+                    <p class="header-description">Browse patient demographics and clinical record counts</p>
+                </div>
+                <div class="header-actions">
+                    <a class="btn btn-outline btn-sm" href="/">Documents</a>
+                    <button type="button" class="btn btn-outline btn-sm" id="refreshBtn" title="Reload list">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="patients-toolbar card">
+                <label class="patients-search-label" for="searchInput">Search</label>
+                <input type="search" id="searchInput" class="input patients-search-input" placeholder="MRN or name…" autocomplete="off">
+                <p class="patients-result-meta text-muted" id="listMeta" aria-live="polite"></p>
+            </div>
+
+            <div class="patients-split">
+                <section class="card patients-list-pane" aria-labelledby="listHeading">
+                    <div class="card-header">
+                        <h2 class="card-title" id="listHeading">Directory</h2>
+                    </div>
+                    <div class="table-container patients-table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>MRN</th>
+                                    <th>Name</th>
+                                    <th>DOB</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patientsTableBody">
+                                <tr>
+                                    <td colspan="3" class="empty-state">
+                                        <div class="empty-state-content">
+                                            <p class="empty-title">Loading patients…</p>
+                                            <p class="empty-description">Please wait.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card patients-detail-pane" aria-labelledby="detailHeading">
+                    <div class="card-header">
+                        <h2 class="card-title" id="detailHeading">Details</h2>
+                    </div>
+                    <div class="patients-detail-body" id="detailBody">
+                        <div class="empty-state-content patients-detail-placeholder">
+                            <p class="empty-title">Select a patient</p>
+                            <p class="empty-description">Choose a row from the directory to view full details.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="/patients.js"></script>
+</body>
+</html>
