@@ -2,6 +2,8 @@ const prisma = require('../db/prisma');
 
 const DEFAULT_TAKE = 50;
 const MAX_TAKE = 200;
+/** Max rows per related collection on patient detail (tabs). Not BigInt-heavy. */
+const PATIENT_RELATED_TAKE = 50;
 
 function parseIntParam(value, fallback) {
     const n = parseInt(String(value), 10);
@@ -59,6 +61,8 @@ class PatientController {
             return { error: 'Invalid patient id', status: 400 };
         }
 
+        const notDeleted = { deletedAt: null };
+
         const patient = await prisma.patient.findFirst({
             where: { id, deletedAt: null },
             include: {
@@ -71,6 +75,44 @@ class PatientController {
                         immunizations: true,
                         observations: true,
                     },
+                },
+                encounters: {
+                    where: notDeleted,
+                    orderBy: { encounterDateTime: 'desc' },
+                    take: PATIENT_RELATED_TAKE,
+                    select: {
+                        id: true,
+                        encounterType: true,
+                        encounterDateTime: true,
+                        chiefComplaint: true,
+                        clinicalSummary: true,
+                        disposition: true,
+                    },
+                },
+                allergies: {
+                    where: notDeleted,
+                    orderBy: { createdAt: 'desc' },
+                    take: PATIENT_RELATED_TAKE,
+                },
+                medicalHistory: {
+                    where: notDeleted,
+                    orderBy: [{ diagnosisDate: 'desc' }, { createdAt: 'desc' }],
+                    take: PATIENT_RELATED_TAKE,
+                },
+                carePlans: {
+                    where: notDeleted,
+                    orderBy: { createdAt: 'desc' },
+                    take: PATIENT_RELATED_TAKE,
+                },
+                immunizations: {
+                    where: notDeleted,
+                    orderBy: { administrationDate: 'desc' },
+                    take: PATIENT_RELATED_TAKE,
+                },
+                observations: {
+                    where: notDeleted,
+                    orderBy: { observedAt: 'desc' },
+                    take: PATIENT_RELATED_TAKE,
                 },
             },
         });

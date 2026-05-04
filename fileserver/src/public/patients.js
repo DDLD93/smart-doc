@@ -51,6 +51,34 @@ function formatDateOnly(iso) {
     });
 }
 
+function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function humanizeEnum(value) {
+    if (value == null || value === '') return '—';
+    return String(value)
+        .split('_')
+        .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+        .join(' ');
+}
+
+function truncate(text, max) {
+    if (text == null || text === '') return '';
+    const s = String(text);
+    if (s.length <= max) return s;
+    return `${s.slice(0, max)}…`;
+}
+
 function ageFromDob(iso) {
     if (!iso) return null;
     const d = new Date(iso);
@@ -199,6 +227,178 @@ function dlRow(label, valueHtml) {
     return `<div class="patient-dl-row"><dt>${escapeHtml(label)}</dt><dd>${valueHtml}</dd></div>`;
 }
 
+function emptyTabMessage(title, body) {
+    return `<div class="patient-tab-empty"><p class="empty-title">${escapeHtml(title)}</p><p class="empty-description">${escapeHtml(body)}</p></div>`;
+}
+
+function renderEncountersPanel(encounters) {
+    if (!encounters || !encounters.length) {
+        return emptyTabMessage('No encounters', 'There are no encounters on file for this patient.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>When</th><th>Type</th><th>Chief complaint</th><th>Disposition</th></tr></thead>
+            <tbody>${encounters
+                .map(
+                    (e) => `
+                <tr>
+                    <td>${escapeHtml(formatDateTime(e.encounterDateTime))}</td>
+                    <td>${escapeHtml(humanizeEnum(e.encounterType))}</td>
+                    <td>
+                        <span title="${escapeHtml(e.chiefComplaint || '')}">${e.chiefComplaint ? escapeHtml(truncate(e.chiefComplaint, 80)) : '—'}</span>
+                        ${e.clinicalSummary ? `<div class="text-muted patient-subline" title="${escapeHtml(e.clinicalSummary)}">${escapeHtml(truncate(e.clinicalSummary, 100))}</div>` : ''}
+                    </td>
+                    <td>${escapeHtml(humanizeEnum(e.disposition))}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderAllergiesPanel(rows) {
+    if (!rows || !rows.length) {
+        return emptyTabMessage('No allergies', 'No allergy records for this patient.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Allergen</th><th>Reaction</th><th>Severity</th><th>Status</th><th>Onset</th></tr></thead>
+            <tbody>${rows
+                .map(
+                    (r) => `
+                <tr>
+                    <td>${escapeHtml(r.allergen)}</td>
+                    <td>${escapeHtml(truncate(r.reaction, 120))}</td>
+                    <td>${escapeHtml(humanizeEnum(r.severity))}</td>
+                    <td>${escapeHtml(humanizeEnum(r.status))}</td>
+                    <td>${escapeHtml(formatDateOnly(r.onsetDate))}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderMedicalHistoryPanel(rows) {
+    if (!rows || !rows.length) {
+        return emptyTabMessage('No medical history', 'No past conditions on file.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Condition</th><th>Code</th><th>Diagnosed</th><th>Resolved</th><th>Chronicity</th><th>Family hx</th></tr></thead>
+            <tbody>${rows
+                .map(
+                    (r) => `
+                <tr>
+                    <td>${escapeHtml(r.conditionName)}</td>
+                    <td class="font-mono">${escapeHtml(r.conditionCode || '—')}</td>
+                    <td>${escapeHtml(formatDateOnly(r.diagnosisDate))}</td>
+                    <td>${escapeHtml(formatDateOnly(r.resolutionDate))}</td>
+                    <td>${escapeHtml(humanizeEnum(r.chronicity))}</td>
+                    <td>${r.familyHistory ? 'Yes' : 'No'}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderCarePlansPanel(rows) {
+    if (!rows || !rows.length) {
+        return emptyTabMessage('No care plans', 'No care plans linked to this patient.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Status</th><th>Review</th><th>Goals</th><th>Interventions</th></tr></thead>
+            <tbody>${rows
+                .map((r) => {
+                    return `
+                <tr>
+                    <td>${escapeHtml(humanizeEnum(r.status))}</td>
+                    <td>${escapeHtml(formatDateOnly(r.reviewDate))}</td>
+                    <td>${escapeHtml(truncate((r.goals || []).join('; '), 140))}</td>
+                    <td>${escapeHtml(truncate((r.interventions || []).join('; '), 140))}</td>
+                </tr>`;
+                })
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderImmunizationsPanel(rows) {
+    if (!rows || !rows.length) {
+        return emptyTabMessage('No immunizations', 'No vaccine administrations recorded.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Vaccine</th><th>Code</th><th>Date</th><th>Dose</th><th>Reaction</th></tr></thead>
+            <tbody>${rows
+                .map(
+                    (r) => `
+                <tr>
+                    <td>${escapeHtml(r.vaccineName)}</td>
+                    <td class="font-mono">${escapeHtml(r.vaccineCode || '—')}</td>
+                    <td>${escapeHtml(formatDateOnly(r.administrationDate))}</td>
+                    <td>${r.doseNumber != null ? escapeHtml(String(r.doseNumber)) : '—'}</td>
+                    <td>${escapeHtml(r.adverseReaction ? truncate(r.adverseReaction, 80) : '—')}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function renderObservationsPanel(rows) {
+    if (!rows || !rows.length) {
+        return emptyTabMessage('No observations', 'No observations (labs, vitals, etc.) on file.');
+    }
+    return `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Observed</th><th>Type</th><th>Value</th><th>Interpretation</th></tr></thead>
+            <tbody>${rows
+                .map(
+                    (r) => `
+                <tr>
+                    <td>${escapeHtml(formatDateTime(r.observedAt))}</td>
+                    <td>${escapeHtml(r.observationType)}${r.observationCode ? ` <span class="text-muted font-mono">${escapeHtml(r.observationCode)}</span>` : ''}</td>
+                    <td>${escapeHtml(r.value)}${r.unit ? ` <span class="text-muted">${escapeHtml(r.unit)}</span>` : ''}</td>
+                    <td>${escapeHtml(r.interpretation || '—')}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function wirePatientTabs(root) {
+    const tabs = root.querySelectorAll('.patient-tabs [role="tab"]');
+    const panels = root.querySelectorAll('.patient-tab-panel');
+
+    function syncPanels(activeId) {
+        panels.forEach((panel) => {
+            const on = panel.getAttribute('data-tabpanel') === activeId;
+            panel.classList.toggle('is-active', on);
+            panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+        });
+    }
+
+    tabs.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-tab');
+            tabs.forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+            syncPanels(id);
+        });
+    });
+
+    syncPanels('overview');
+}
+
 function renderDetail(p) {
     const dob = p.dateOfBirth;
     const age = ageFromDob(dob);
@@ -232,14 +432,7 @@ function renderDetail(p) {
     const weight =
         p.baselineWeightKg != null ? `${escapeHtml(String(p.baselineWeightKg))} kg` : '—';
 
-    detailBody.innerHTML = `
-        <div class="patients-detail-header">
-            <div>
-                <h3 class="patients-detail-name">${escapeHtml(fullName(p))}</h3>
-                <p class="text-muted patients-detail-sub">MRN <span class="font-mono">${escapeHtml(p.medicalRecordNumber)}</span></p>
-            </div>
-            <div class="patients-detail-badges">${badges.join('')}</div>
-        </div>
+    const overviewPanel = `
         <div class="patient-count-row">${countChips}</div>
         <dl class="patient-dl">
             ${dlRow('Date of birth', `${escapeHtml(formatDateOnly(dob))}${age != null ? ` <span class="text-muted">(${age} years)</span>` : ''}`)}
@@ -252,6 +445,37 @@ function renderDetail(p) {
             ${dlRow('Created', escapeHtml(formatDateOnly(p.createdAt)))}
             ${dlRow('Updated', escapeHtml(formatDateOnly(p.updatedAt)))}
         </dl>`;
+
+    detailBody.innerHTML = `
+        <div class="patients-detail-header">
+            <div>
+                <h3 class="patients-detail-name">${escapeHtml(fullName(p))}</h3>
+                <p class="text-muted patients-detail-sub">MRN <span class="font-mono">${escapeHtml(p.medicalRecordNumber)}</span></p>
+            </div>
+            <div class="patients-detail-badges">${badges.join('')}</div>
+        </div>
+        <div class="patient-tabs-wrap">
+            <div class="patient-tabs" role="tablist" aria-label="Patient record sections">
+                <button type="button" class="patient-tab" role="tab" aria-selected="true" data-tab="overview" id="ptab-overview">Overview</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="encounters" id="ptab-encounters">Encounters</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="allergies" id="ptab-allergies">Allergies</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="history" id="ptab-history">Medical history</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="care" id="ptab-care">Care plans</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="immunizations" id="ptab-immunizations">Immunizations</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="observations" id="ptab-observations">Observations</button>
+            </div>
+        </div>
+        <div class="patient-tab-panels">
+            <div class="patient-tab-panel is-active" role="tabpanel" data-tabpanel="overview" aria-labelledby="ptab-overview" aria-hidden="false">${overviewPanel}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="encounters" aria-labelledby="ptab-encounters" aria-hidden="true">${renderEncountersPanel(p.encounters)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="allergies" aria-labelledby="ptab-allergies" aria-hidden="true">${renderAllergiesPanel(p.allergies)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="history" aria-labelledby="ptab-history" aria-hidden="true">${renderMedicalHistoryPanel(p.medicalHistory)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="care" aria-labelledby="ptab-care" aria-hidden="true">${renderCarePlansPanel(p.carePlans)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="immunizations" aria-labelledby="ptab-immunizations" aria-hidden="true">${renderImmunizationsPanel(p.immunizations)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="observations" aria-labelledby="ptab-observations" aria-hidden="true">${renderObservationsPanel(p.observations)}</div>
+        </div>`;
+
+    wirePatientTabs(detailBody);
 }
 
 async function selectPatient(id) {

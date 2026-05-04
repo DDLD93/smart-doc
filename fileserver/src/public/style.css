@@ -817,6 +817,95 @@ body {
     gap: 0.5rem;
 }
 
+.patient-tabs-wrap {
+    border-bottom: 1px solid hsl(var(--border));
+    margin: 0;
+}
+
+.patient-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.125rem;
+    overflow-x: auto;
+    padding: 0 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.patient-tab {
+    flex: 0 0 auto;
+    padding: 0.625rem 0.75rem;
+    margin-bottom: -1px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.patient-tab:hover {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--muted) / 0.5);
+}
+
+.patient-tab[aria-selected='true'] {
+    color: hsl(var(--foreground));
+    border-bottom-color: hsl(var(--primary));
+    font-weight: 600;
+}
+
+.patient-tab-panels {
+    padding: 0;
+}
+
+.patient-tab-panel {
+    display: none;
+    padding: 0 0 1rem;
+}
+
+.patient-tab-panel.is-active {
+    display: block;
+}
+
+.patient-tab-table-wrap {
+    max-height: min(55vh, 28rem);
+    overflow: auto;
+    margin: 0 0 0.5rem;
+}
+
+.table-patient-sub {
+    font-size: 0.8125rem;
+}
+
+.table-patient-sub th,
+.table-patient-sub td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+}
+
+.patient-subline {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    line-height: 1.35;
+}
+
+.patient-tab-empty {
+    padding: 2rem 1.5rem;
+    text-align: center;
+}
+
+.patient-tab-empty .empty-title {
+    font-size: 0.9375rem;
+}
+
+.patient-tab-empty .empty-description {
+    font-size: 0.875rem;
+}
+
 .patient-count-row {
     padding: 0.75rem 1.5rem;
     display: flex;
