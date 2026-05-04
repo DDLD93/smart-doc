@@ -10,84 +10,9 @@ datasource db {
   url      = env("POSTGRES_CONNECTION_STRING")
 }
 
-model Patient {
-  subjectId        Int      @id @map("subject_id")
-  gender           String
-  anchorAge        Int      @map("anchor_age")
-  anchorYear       Int      @map("anchor_year")
-  anchorYearGroup  String?  @map("anchor_year_group")
-  dod              DateTime?
 
-  admissions       Admission[]
-  emars            Emar[]
 
-  @@map("patients")
-}
-
-model Admission {
-  subjectId           Int      @map("subject_id")
-  hadmId              String   @id @map("hadm_id")
-  admittime           DateTime
-  dischtime           DateTime
-  deathtime           DateTime?
-  admissionType       String   @map("admission_type")
-  admitProviderId     String   @map("admit_provider_id")
-  admissionLocation   String?  @map("admission_location")
-  dischargeLocation   String?  @map("discharge_location")
-  insurance           String?
-  language            String?
-  maritalStatus       String?  @map("marital_status")
-  race                String?
-  edregtime           DateTime? @map("edregtime")
-  edouttime           DateTime? @map("edouttime")
-  hospitalExpireFlag  Int?     @map("hospital_expire_flag")
-
-  patient             Patient  @relation(fields: [subjectId], references: [subjectId])
-  emars               Emar[]
-
-  @@map("admissions")
-}
-
-model Emar {
-  id               Int      @id @default(autoincrement())
-  subjectId        Int      @map("subject_id")
-  hadmId           String   @map("hadm_id")
-  emarId           String   @map("emar_id")
-  emarSeq          Int      @map("emar_seq")
-  poeId            String?  @map("poe_id")
-  pharmacyId      String?  @map("pharmacy_id")
-  enterProviderId  String?  @map("enter_provider_id")
-  charttime        DateTime?
-  medication       String?
-  eventTxt         String?  @map("event_txt")
-  scheduletime     DateTime?
-  storetime        DateTime?
-
-  patient          Patient   @relation(fields: [subjectId], references: [subjectId])
-  admission        Admission @relation(fields: [hadmId], references: [hadmId])
-
-  @@map("emar")
-  @@index([hadmId])
-  @@index([subjectId])
-}
-
-model IcdDiagnosis {
-  icdCode    String @id @map("icd_code")
-  icdVersion Int    @map("icd_version")
-  longTitle  String @map("long_title")
-
-  @@map("d_icd_diagnoses")
-}
-
-model Hcpcs {
-  code              String  @id
-  category          String?
-  longDescription   String? @map("long_description")
-  shortDescription  String? @map("short_description")
-
-  @@map("d_hcpcs")
-}
-
+// files
 enum FileStatus {
   PENDING_INGEST
   PROCESSING

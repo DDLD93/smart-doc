@@ -79,7 +79,7 @@ Click the download icon (↓) next to any document
 
 Click the delete icon (🗑️) next to any document
 - Confirms before deletion
-- Removes file, metadata, and all vectors
+- Permanently removes the S3 object, all Qdrant vectors, the database row, and related ingest jobs/attempts
 
 ## Troubleshooting
 
@@ -145,6 +145,8 @@ GET /files/:id/download
 ```
 
 ### Delete File
+Permanently deletes the file from S3, Qdrant, and Postgres (cascades to ingest jobs and attempts).
+
 ```bash
 DELETE /files/:id
 ```

@@ -77,6 +77,7 @@ class FileController {
     async getFiles() {
         try {
             const files = await prisma.fileAsset.findMany({
+                where: { status: { not: 'DELETED' } },
                 orderBy: { uploadedAt: 'desc' },
                 include: {
                     jobs: {
@@ -156,10 +157,7 @@ class FileController {
                 return { error: 'File not found' };
             }
 
-            console.log(`[FileController] Deleting file object: ${file.objectKey}`);
-            await s3Storage.deleteObject(file.objectKey);
-
-            // Delete related vectors from Qdrant (best effort)
+            // Remove vectors from Qdrant (best effort)
             try {
                 const qdrant = require('./qdrant.controller');
                 await qdrant.deleteByFileId(qdrant.collectionName, id);
@@ -168,15 +166,22 @@ class FileController {
                 console.warn(`[FileController] Failed to delete vectors: ${error.message}`);
             }
 
-            // Delete from database
-            await prisma.fileAsset.update({
+            // Remove object from S3 (best effort)
+            try {
+                console.log(`[FileController] Deleting file object: ${file.objectKey}`);
+                await s3Storage.deleteObject(file.objectKey);
+            } catch (error) {
+                console.warn(`[FileController] Failed to delete S3 object: ${error.message}`);
+            }
+
+            // Hard delete from DB (cascades to ingest_jobs and ingest_attempts)
+            await prisma.fileAsset.delete({
                 where: { id },
-                data: { status: 'DELETED', deletedAt: new Date() },
             });
-            console.log(`[FileController] Marked as deleted: ${id}`);
+            console.log(`[FileController] Permanently deleted file record: ${id}`);
 
             return {
-                message: 'File deleted successfully',
+                message: 'File permanently deleted',
                 deletedFile: {
                     id,
                     name: file.originalName

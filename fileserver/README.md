@@ -61,7 +61,7 @@ The server will run on `http://localhost:3000`
 
 #### View All Files
 - **GET** `/files`
-- Response: List of all uploaded files with metadata
+- Response: List of uploaded files with metadata (excludes soft-deleted legacy rows with `status=DELETED` if any remain)
 
 #### View Single File
 - **GET** `/files/:id`
@@ -73,7 +73,7 @@ The server will run on `http://localhost:3000`
 
 #### Delete File
 - **DELETE** `/files/:id`
-- Response: marks file as deleted, removes S3 object, and best-effort removes vectors
+- Response: permanently deletes the file from S3, Qdrant, and the database (including ingest jobs and attempts). External cleanup steps are best-effort; the DB row is always removed when the request succeeds.
 
 #### File Jobs
 - **GET** `/files/:id/jobs`
