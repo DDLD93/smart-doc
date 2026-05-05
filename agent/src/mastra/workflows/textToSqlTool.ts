@@ -286,7 +286,7 @@ const executeQueryStep = createStep({
 		
 		// Execute the validated SQL
 		try {
-			const pg = new PostgresStore({ connectionString: process.env.POSTGRES_CONNECTION_STRING });
+			const pg = new PostgresStore({id: "mastra-db", connectionString: process.env.POSTGRES_CONNECTION_STRING });
 			await pg.init();
 			const rows = await pg.db.any(generatedSql);
 			

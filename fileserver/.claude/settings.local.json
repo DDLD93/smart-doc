@@ -3,7 +3,8 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\" -Recurse -Filter \"*.js\")",
       "Bash(Select-Object -First 50)",
-      "Bash(Format-Table FullName)"
+      "Bash(Format-Table FullName)",
+      "PowerShell(node --check \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\\\\prisma\\\\seed.js\"; if \\($?\\) { \"SYNTAX OK\" } else { \"SYNTAX ERROR\" })"
     ]
   }
 }
