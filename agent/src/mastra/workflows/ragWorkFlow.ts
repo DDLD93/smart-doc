@@ -30,17 +30,29 @@ const acceptQuestionStep = createStep({
 		question: z.string().describe("The natural language question to process"),
 		topK: z.number().optional().describe("Number of results to retrieve"),
 		filter: z.any().optional().describe("Optional filter for search"),
+		patientId: z.string().optional().describe("Optional patient filter"),
+		fileId: z.string().optional().describe("Optional file filter"),
+		encounterId: z.string().optional().describe("Optional encounter filter"),
+		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		topK: z.number(),
 		filter: z.any().optional(),
+		patientId: z.string().optional(),
+		fileId: z.string().optional(),
+		encounterId: z.string().optional(),
+		baseUrl: z.string().optional(),
 	}),
 	execute: async ({ inputData }) => {
 		return {
 			originalQuestion: inputData.question,
 			topK: inputData.topK || 10,
 			filter: inputData.filter,
+			patientId: inputData.patientId,
+			fileId: inputData.fileId,
+			encounterId: inputData.encounterId,
+			baseUrl: inputData.baseUrl,
 		};
 	},
 });
@@ -52,15 +64,23 @@ const refineQuestionStep = createStep({
 		originalQuestion: z.string(),
 		topK: z.number(),
 		filter: z.any().optional(),
+		patientId: z.string().optional(),
+		fileId: z.string().optional(),
+		encounterId: z.string().optional(),
+		baseUrl: z.string().optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		topK: z.number(),
 		filter: z.any().optional(),
+		patientId: z.string().optional(),
+		fileId: z.string().optional(),
+		encounterId: z.string().optional(),
+		baseUrl: z.string().optional(),
 	}),
 	execute: async ({ inputData }) => {
-		const { originalQuestion, topK, filter } = inputData;
+		const { originalQuestion, topK, filter, patientId, fileId, encounterId, baseUrl } = inputData;
 		
 		const prompt = `Refine this question for better semantic search and information retrieval: "${originalQuestion}"
 		
@@ -78,6 +98,10 @@ Return only the refined question.`;
 			refinedQuestion: text.trim(),
 			topK,
 			filter,
+			patientId,
+			fileId,
+			encounterId,
+			baseUrl,
 		};
 	},
 });
@@ -91,6 +115,10 @@ const ragRetrieverStep = createStep({
         refinedQuestion: z.string(),
         topK: z.number(),
         filter: z.any().optional(),
+        patientId: z.string().optional(),
+        fileId: z.string().optional(),
+        encounterId: z.string().optional(),
+        baseUrl: z.string().optional(),
     }),
     outputSchema: z.object({
         originalQuestion: z.string(),
@@ -109,11 +137,27 @@ const ragRetrieverStep = createStep({
         sources: z.array(z.any()),
     }),
     execute: async ({ inputData }) => {
-        const { originalQuestion, refinedQuestion, topK, filter } = inputData;
-		const retrieval = await retrieveTopK(refinedQuestion, { topK, filter });
+        const { originalQuestion, refinedQuestion, topK, filter, patientId, fileId, encounterId, baseUrl } = inputData;
+		const likelyDoctorNotes = /(doctor note|progress note|soap note|clinical note|encounter note)/i.test(refinedQuestion);
+		const retrieval = await retrieveTopK(refinedQuestion, {
+			topK,
+			filter,
+			patientId,
+			fileId,
+			encounterId,
+			baseUrl,
+			collection: likelyDoctorNotes ? "doctor_notes" : "documents",
+		});
 
         const results = Array.isArray((retrieval as any)?.results) ? (retrieval as any).results : [];
-        const searchResults = results as Array<{ fileId: string | number; filename?: string; originalName?: string; chunk: string; page?: number }>;
+        const searchResults = results as Array<{
+			fileId: string | number;
+			filename?: string;
+			originalName?: string;
+			chunk: string;
+			page?: number;
+			payload?: Record<string, unknown>;
+		}>;
         const relevantContext = searchResults
             .map((r) => r.chunk)
             .filter((t) => typeof t === "string" && t.trim().length > 0)
@@ -141,6 +185,7 @@ const synthesizeInformationStep = createStep({
                 originalName: z.string().optional(),
                 chunk: z.string(),
                 page: z.number().optional(),
+				payload: z.any().optional(),
             })
         ),
 		relevantContext: z.string(),
@@ -200,6 +245,10 @@ export const ragWorkflow = createWorkflow({
 		question: z.string().describe("Natural language question to search for"),
 		topK: z.number().optional().describe("Number of results to retrieve (default: 10)"),
 		filter: z.any().optional().describe("Optional filter for search"),
+		patientId: z.string().optional(),
+		fileId: z.string().optional(),
+		encounterId: z.string().optional(),
+		baseUrl: z.string().optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),

@@ -8,7 +8,11 @@ export const ragTool = createTool({
 	inputSchema: z.object({
 		queryText: z.string().describe("The natural language question to search for"),
 		topK: z.number().optional().describe("Number of results to retrieve (default: 10)"),
-		filter: z.any().optional().describe("Optional filter for search")
+		filter: z.any().optional().describe("Optional filter for search"),
+		patientId: z.string().optional(),
+		fileId: z.string().optional(),
+		encounterId: z.string().optional(),
+		baseUrl: z.string().optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string().describe("The original user question"),
@@ -19,7 +23,7 @@ export const ragTool = createTool({
 		searchSuccess: z.boolean().describe("Whether the search found relevant information")
 	}),
 	execute: async (inputData, _context) => {
-		const { queryText, topK, filter } = inputData;
+		const { queryText, topK, filter, patientId, fileId, encounterId, baseUrl } = inputData;
 		
 		// Call the comprehensive workflow that implements all 5 steps from @project.mdc
 		const workflowRun = await ragWorkflow.createRun();
@@ -28,6 +32,10 @@ export const ragTool = createTool({
 				question: queryText,
 				topK,
 				filter,
+				patientId,
+				fileId,
+				encounterId,
+				baseUrl,
 			}
 		});
 		

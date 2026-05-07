@@ -1,67 +1,45 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { google } from "@ai-sdk/google";
-import { embed } from "ai";
-import { QdrantVector } from '@mastra/qdrant'
- 
-const qdrantUrl = process.env.QDRANT_URL;
-const qdrantApiKey = process.env.QDRANT_API_KEY || "";
-
-let store: QdrantVector | null = null;
-let indexReady = false;
-
-async function getStore() {
-  if (!qdrantUrl) {
-    throw new Error("QDRANT_URL environment variable is required");
-  }
-
-  if (!store) {
-    store = new QdrantVector({
-      id: "rag-retriever-store",
-      url: qdrantUrl,
-      apiKey: qdrantApiKey,
-    });
-  }
-
-  if (!indexReady) {
-    await store.createIndex({
-      indexName: "documents",
-      dimension: 3072,
-    });
-    indexReady = true;
-  }
-
-  return store;
-}
+import { requestAgentApi } from "./agentApiClient";
 
 export async function retrieveTopK(
     question: string,
-    options?: { topK?: number; collection?: string; filter?: unknown }
+    options?: {
+        topK?: number;
+        collection?: "documents" | "doctor_notes";
+        filter?: unknown;
+        patientId?: string;
+        fileId?: string;
+        encounterId?: string;
+        baseUrl?: string;
+    }
 ) {
-    const vectorStore = await getStore();
-    const { embedding } = await embed({
-        model: google.textEmbeddingModel('gemini-embedding-001'),
-        value: question,
+    const collection = options?.collection ?? "documents";
+    const path = collection === "doctor_notes" ? "/agent/rag/search-doctor-notes" : "/agent/rag/search-documents";
+
+    const raw = await requestAgentApi<{ results?: Array<{ payload?: Record<string, unknown> }> }>({
+        method: "POST",
+        path,
+        body: {
+            query: question,
+            limit: options?.topK,
+            filter: options?.filter,
+            patientId: options?.patientId,
+            fileId: options?.fileId,
+            encounterId: options?.encounterId,
+        },
+        baseUrl: options?.baseUrl,
     });
 
-    const collection = options?.collection || "documents";
-
-    const results = await vectorStore.query({
-        indexName: collection,
-        queryVector: embedding,
-        topK: options?.topK ?? 5,
-        filter: options?.filter as any,
-    });
-
-    const normalized = results.map((r: any) => {
-        const metadata = r?.metadata ?? {};
-        const fileId = metadata.fileId ?? r?.id;
-        const filename = metadata.filename ?? metadata.file_name;
-        const originalName = metadata.originalName ?? metadata.original_name;
-        const rawPage = metadata.page;
-        const page = typeof rawPage === 'number' ? rawPage : (Number.isNaN(parseInt(rawPage)) ? undefined : parseInt(rawPage));
-        const chunk = metadata.text ?? metadata.content ?? "";
-        return { fileId, filename, originalName, chunk, page };
+    const normalized = (raw.results ?? []).map((item) => {
+        const payload = item.payload ?? {};
+        const fileId = (payload.fileId as string | number | undefined) ?? "";
+        const filename = payload.filename as string | undefined;
+        const originalName = payload.originalName as string | undefined;
+        const page = typeof payload.page === "number" ? payload.page : undefined;
+        const chunkRaw = payload.text ?? payload.noteText ?? "";
+        const chunk = typeof chunkRaw === "string" ? chunkRaw : String(chunkRaw);
+        return { fileId, filename, originalName, chunk, page, payload };
     });
 
     return { results: normalized };
@@ -69,12 +47,16 @@ export async function retrieveTopK(
 
 export const ragRetrieverTool = createTool({
 	id: "qdrant-rag-retriever",
-	description: "Retrieve top-K relevant chunks from local Qdrant using semantic search.",
+	description: "Backward-compatible retriever that now uses /agent/rag/search-documents.",
     inputSchema: z.object({
         question: z.string().describe("Natural language query to search for"),
         topK: z.number().optional().describe("Number of results to retrieve (default 5)"),
-        collection: z.string().optional().describe("Qdrant collection name (default: documents)"),
+        collection: z.enum(["documents", "doctor_notes"]).optional().describe("Target collection (default: documents)"),
+        patientId: z.string().optional(),
+        fileId: z.string().optional(),
+        encounterId: z.string().optional(),
         filter: z.any().optional().describe("Optional metadata filter for search"),
+        baseUrl: z.string().url().optional(),
     }),
     outputSchema: z.object({
         results: z.array(
@@ -84,12 +66,13 @@ export const ragRetrieverTool = createTool({
                 originalName: z.string().optional(),
                 chunk: z.string(),
                 page: z.number().optional(),
+                payload: z.any().optional(),
             })
         ),
     }),
     execute: async (inputData, _context) => {
-        const { question, topK, collection, filter } = inputData;
-        return await retrieveTopK(question, { topK, collection, filter });
+        const { question, topK, collection, filter, patientId, fileId, encounterId, baseUrl } = inputData;
+        return await retrieveTopK(question, { topK, collection, filter, patientId, fileId, encounterId, baseUrl });
     },
 });
 

@@ -1,23 +1,15 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-
-type RagSearchResult = {
-    id: number | string;
-    version?: number;
-    score?: number;
-    payload?: Record<string, unknown>;
-};
-
-type RagSearchResponse = {
-    results: RagSearchResult[];
-};
+import { requestAgentApi } from "./agentApiClient";
 
 export const ragHttpSearchTool = createTool({
     id: "rag-http-search",
-    description: "Call external RAG fileserver to perform vector search and return raw results.",
+    description: "Backward-compatible HTTP RAG search against /agent/rag/search-documents.",
     inputSchema: z.object({
         query: z.string().describe("Natural language query"),
-        limit: z.number().optional().describe("Number of results to retrieve"),
+        limit: z.number().int().min(1).max(50).optional().describe("Number of results to retrieve"),
+        patientId: z.string().optional().describe("Optional patient filter"),
+        fileId: z.string().optional().describe("Optional file filter"),
         filter: z.any().optional().describe("Optional Qdrant filter object"),
         baseUrl: z
             .string()
@@ -28,26 +20,13 @@ export const ragHttpSearchTool = createTool({
         results: z.array(z.any()),
     }),
     execute: async (inputData, _context) => {
-        const { query, limit, filter, baseUrl } = inputData;
-
-        const resolvedBaseUrl = process.env.FILESERVER_BASE_URL;
-        if (!resolvedBaseUrl) {
-            throw new Error("FILESERVER_BASE_URL is not set");
-        }
-        const url = `${resolvedBaseUrl.replace(/\/$/, "")}/rag/search`;
-
-        const response = await fetch(url, {
+        const { query, limit, filter, baseUrl, patientId, fileId } = inputData;
+        const data = await requestAgentApi<{ results?: unknown[] }>({
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, limit, filter }),
+            path: "/agent/rag/search-documents",
+            body: { query, limit, patientId, fileId, filter },
+            baseUrl,
         });
-
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            throw new Error(`RAG HTTP search failed: ${response.status} ${response.statusText} ${text}`);
-        }
-
-        const data = (await response.json()) as RagSearchResponse;
         return { results: data?.results ?? [] };
     },
 });

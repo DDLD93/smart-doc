@@ -7,7 +7,10 @@ export const textToSqlTool = createTool({
 	description: "Convert natural language questions into SQL queries and execute them against the PostgreSQL database to retrieve structured data. Follows a comprehensive 6-step workflow: question acceptance, refinement, schema determination, SQL generation, validation, and execution.",
 	inputSchema: z.object({
 		queryText: z.string().describe("The natural language question to convert to SQL"),
-		schemaDescription: z.string().optional().describe("Optional description of the database schema, tables, and columns available")
+		schemaDescription: z.string().optional().describe("Optional description of the database schema, tables, and columns available"),
+		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
+		limit: z.number().int().min(1).max(500).optional().describe("Optional SQL result limit"),
+		params: z.array(z.any()).optional().describe("Optional SQL positional parameters"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string().describe("The original user question"),
@@ -19,7 +22,7 @@ export const textToSqlTool = createTool({
 		executionSuccess: z.boolean().describe("Whether the SQL execution was successful")
 	}),
 	execute: async (inputData, _context) => {
-		const { queryText, schemaDescription } = inputData;
+		const { queryText, schemaDescription, baseUrl, limit, params } = inputData;
 		
 		// Call the comprehensive workflow that implements all 6 steps from @project.mdc
 		const workflowRun = await textToSqlWorkflow.createRun();
@@ -27,6 +30,9 @@ export const textToSqlTool = createTool({
 			inputData: {
 				question: queryText,
 				schemaDescription,
+				baseUrl,
+				limit,
+				params,
 			}
 		});
 		

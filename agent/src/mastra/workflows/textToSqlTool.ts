@@ -1,7 +1,7 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { Agent } from "@mastra/core/agent";
-import { PostgresStore } from "@mastra/pg";
+import { requestAgentApi } from "../tools/agentApiClient";
 
 // Agent for question refinement
 const questionRefinementAgent = new Agent({
@@ -36,15 +36,24 @@ const acceptQuestionStep = createStep({
 	inputSchema: z.object({
 		question: z.string().describe("The natural language question to process"),
 		schemaDescription: z.string().optional().describe("Optional database schema description"),
+		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
+		limit: z.number().int().min(1).max(500).optional().describe("Result limit"),
+		params: z.array(z.any()).optional().describe("Optional SQL positional params"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		schemaDescription: z.string().optional(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		return {
 			originalQuestion: inputData.question,
 			schemaDescription: inputData.schemaDescription,
+			baseUrl: inputData.baseUrl,
+			limit: inputData.limit,
+			params: inputData.params,
 		};
 	},
 });
@@ -55,14 +64,20 @@ const refineQuestionStep = createStep({
 	inputSchema: z.object({
 		originalQuestion: z.string(),
 		schemaDescription: z.string().optional(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		schemaDescription: z.string().optional(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	execute: async ({ inputData }) => {
-		const { originalQuestion, schemaDescription } = inputData;
+		const { originalQuestion, schemaDescription, baseUrl, limit, params } = inputData;
 		
 		const prompt = `Refine this question for clarity and better SQL generation: "${originalQuestion}"`;
 		const { text } = await questionRefinementAgent.generate([{ role: "user", content: prompt }]);
@@ -71,6 +86,9 @@ const refineQuestionStep = createStep({
 			originalQuestion,
 			refinedQuestion: text.trim(),
 			schemaDescription,
+			baseUrl,
+			limit,
+			params,
 		};
 	},
 });
@@ -82,93 +100,29 @@ const translateToSqlStep = createStep({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		schemaDescription: z.string().optional(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		relevantSchema: z.string(),
 		generatedSql: z.string(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	execute: async ({ inputData }) => {
-		const { refinedQuestion, schemaDescription } = inputData;
-		
-		// Use provided schema or default medical database schema
-		const relevantSchema = schemaDescription || `
--- Medical Database Schema (PostgreSQL)
-
--- Table: patients
--- Description: Patient demographics and basic information
-CREATE TABLE patients (
-  subject_id INTEGER PRIMARY KEY,
-  gender VARCHAR NOT NULL,
-  anchor_age INTEGER NOT NULL,
-  anchor_year INTEGER NOT NULL,
-  anchor_year_group VARCHAR,
-  dod TIMESTAMP  -- Date of death (nullable)
-);
-
--- Table: admissions
--- Description: Hospital admission records with admission/discharge details
-CREATE TABLE admissions (
-  hadm_id VARCHAR PRIMARY KEY,
-  subject_id INTEGER NOT NULL REFERENCES patients(subject_id),
-  admittime TIMESTAMP NOT NULL,
-  dischtime TIMESTAMP NOT NULL,
-  deathtime TIMESTAMP,
-  admission_type VARCHAR NOT NULL,
-  admit_provider_id VARCHAR NOT NULL,
-  admission_location VARCHAR,
-  discharge_location VARCHAR,
-  insurance VARCHAR,
-  language VARCHAR,
-  marital_status VARCHAR,
-  race VARCHAR,
-  edregtime TIMESTAMP,  -- Emergency department registration time
-  edouttime TIMESTAMP,  -- Emergency department out time
-  hospital_expire_flag INTEGER
-);
-
--- Table: emar
--- Description: Electronic Medication Administration Records
-CREATE TABLE emar (
-  id SERIAL PRIMARY KEY,
-  subject_id INTEGER NOT NULL REFERENCES patients(subject_id),
-  hadm_id VARCHAR NOT NULL REFERENCES admissions(hadm_id),
-  emar_id VARCHAR NOT NULL,
-  emar_seq INTEGER NOT NULL,
-  poe_id VARCHAR,
-  pharmacy_id VARCHAR,
-  enter_provider_id VARCHAR,
-  charttime TIMESTAMP,
-  medication VARCHAR,
-  event_txt VARCHAR,
-  scheduletime TIMESTAMP,
-  storetime TIMESTAMP
-);
--- Indexes: hadm_id, subject_id
-
--- Table: d_icd_diagnoses
--- Description: ICD diagnosis code dictionary with descriptions
-CREATE TABLE d_icd_diagnoses (
-  icd_code VARCHAR PRIMARY KEY,
-  icd_version INTEGER NOT NULL,
-  long_title VARCHAR NOT NULL  -- Full description of the diagnosis
-);
-
--- Table: d_hcpcs
--- Description: Healthcare Common Procedure Coding System (HCPCS) dictionary
-CREATE TABLE d_hcpcs (
-  code VARCHAR PRIMARY KEY,
-  category VARCHAR,
-  long_description VARCHAR,
-  short_description VARCHAR
-);
-
--- Common query patterns:
--- Join patients with admissions: JOIN admissions ON patients.subject_id = admissions.subject_id
--- Join admissions with medications: JOIN emar ON admissions.hadm_id = emar.hadm_id
--- All timestamps are in TIMESTAMP format, use date functions for filtering
-		`.trim();
+		const { refinedQuestion, schemaDescription, baseUrl, limit, params } = inputData;
+		const schemaPayload = schemaDescription
+			? { schemaDescription }
+			: await requestAgentApi<Record<string, unknown>>({
+					method: "GET",
+					path: "/agent/sql/schema",
+					baseUrl,
+				});
+		const relevantSchema = JSON.stringify(schemaPayload, null, 2);
 		
 		const prompt = `
 Schema:
@@ -176,15 +130,21 @@ ${relevantSchema}
 
 Question: ${refinedQuestion}
 
-Generate a PostgreSQL query to answer this question. Return ONLY the SQL query, no explanations or markdown formatting.`;
+Generate a PostgreSQL query to answer this question.
+Return ONLY one SQL statement that is a SELECT or WITH ... SELECT query.
+Do not include markdown fences or explanations.`;
 		
 		const { text } = await sqlGenerationAgent.generate([{ role: "user", content: prompt }]);
 		const generatedSql = text.trim().replace(/^```sql\n?|```$/g, "");
 		
 		return {
-			...inputData,
+			originalQuestion: inputData.originalQuestion,
+			refinedQuestion,
 			relevantSchema,
 			generatedSql,
+			baseUrl,
+			limit,
+			params,
 		};
 	},
 });
@@ -197,6 +157,9 @@ const validateSqlStep = createStep({
 		refinedQuestion: z.string(),
 		relevantSchema: z.string(),
 		generatedSql: z.string(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
@@ -205,6 +168,9 @@ const validateSqlStep = createStep({
 		generatedSql: z.string(),
 		validationResult: z.string(),
 		isValid: z.boolean(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		const { generatedSql, relevantSchema } = inputData;
@@ -245,6 +211,9 @@ const executeQueryStep = createStep({
 		generatedSql: z.string(),
 		validationResult: z.string(),
 		isValid: z.boolean(),
+		baseUrl: z.string().optional(),
+		limit: z.number().optional(),
+		params: z.array(z.any()).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
@@ -256,7 +225,7 @@ const executeQueryStep = createStep({
 		executionSuccess: z.boolean(),
 	}),
 	execute: async ({ inputData }) => {
-		const { originalQuestion, refinedQuestion, generatedSql, validationResult, isValid } = inputData;
+		const { originalQuestion, refinedQuestion, generatedSql, validationResult, isValid, baseUrl, limit, params } = inputData;
 		
 		// If validation failed, don't execute
 		if (!isValid) {
@@ -271,24 +240,18 @@ const executeQueryStep = createStep({
 			};
 		}
 		
-		// Check if database is configured
-		if (!process.env.POSTGRES_CONNECTION_STRING) {
-			return {
-				originalQuestion,
-				refinedQuestion,
-				sql: generatedSql,
-				validationResult,
-				rows: [],
-				executionError: "No database connection configured",
-				executionSuccess: false,
-			};
-		}
-		
-		// Execute the validated SQL
 		try {
-			const pg = new PostgresStore({id: "mastra-db", connectionString: process.env.POSTGRES_CONNECTION_STRING });
-			await pg.init();
-			const rows = await pg.db.any(generatedSql);
+			const data = await requestAgentApi<{ rows?: unknown[] }>({
+				method: "POST",
+				path: "/agent/sql/query",
+				body: {
+					sql: generatedSql,
+					limit,
+					params,
+				},
+				baseUrl,
+			});
+			const rows = Array.isArray(data?.rows) ? data.rows : [];
 			
 			return {
 				originalQuestion,
@@ -318,6 +281,9 @@ export const textToSqlWorkflow = createWorkflow({
 	inputSchema: z.object({
 		question: z.string().describe("Natural language question to convert to SQL"),
 		schemaDescription: z.string().optional().describe("Optional database schema description"),
+		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
+		limit: z.number().int().min(1).max(500).optional().describe("Optional result row limit"),
+		params: z.array(z.any()).optional().describe("Optional SQL positional parameters"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
