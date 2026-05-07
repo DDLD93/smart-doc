@@ -8,6 +8,7 @@ const detailBody = document.getElementById('detailBody');
 
 let searchDebounceTimer = null;
 let selectedPatientId = null;
+let _dnRoot = null;
 
 const SEX_LABELS = {
     MALE: 'Male',
@@ -376,6 +377,64 @@ function renderObservationsPanel(rows) {
     </div>`;
 }
 
+function renderDoctorNotesPanel(notes, patientId) {
+    const addBtn = `<div style="margin-bottom:0.75rem">
+        <button class="btn btn-primary btn-sm" id="addDoctorNoteBtn" data-patient="${escapeHtml(patientId)}">+ Add note</button>
+    </div>`;
+    if (!notes || !notes.length) {
+        return addBtn + emptyTabMessage("No doctor's notes", 'No notes have been saved for this patient yet.');
+    }
+    const rows = notes.map((n) => `
+        <tr>
+            <td>${escapeHtml(formatDateTime(n.createdAt))}</td>
+            <td class="font-mono text-muted" title="${escapeHtml(n.encounterId || '')}">${escapeHtml(truncate(n.encounterId || '—', 14))}</td>
+            <td>${escapeHtml(humanizeEnum(n.noteType))}</td>
+            <td><span title="${escapeHtml(n.noteText || '')}">${escapeHtml(truncate(n.noteText || '', 120))}</span></td>
+        </tr>`).join('');
+    return addBtn + `<div class="table-container patient-tab-table-wrap">
+        <table class="table table-patient-sub">
+            <thead><tr><th>Date</th><th>Encounter</th><th>Type</th><th>Note</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+}
+
+async function loadDoctorNotes(patientId, root) {
+    const panel = root.querySelector('[data-tabpanel="notes"]');
+    if (!panel) return;
+    panel.innerHTML = '<p class="text-muted" style="padding:1rem">Loading notes…</p>';
+    try {
+        const res = await fetch(`${API}/${encodeURIComponent(patientId)}/notes`);
+        if (!res.ok) throw new Error(res.statusText);
+        const notes = await res.json();
+        panel.innerHTML = renderDoctorNotesPanel(notes, patientId);
+        wireAddNoteButton(panel, patientId, root);
+    } catch (e) {
+        panel.innerHTML = `<p class="text-muted" style="padding:1rem">Failed to load notes: ${escapeHtml(e.message)}</p>`;
+    }
+}
+
+function wireAddNoteButton(panel, patientId, root) {
+    const btn = panel.querySelector('#addDoctorNoteBtn');
+    if (!btn) return;
+    btn.addEventListener('click', () => openDoctorNoteModal(patientId, root));
+}
+
+function openDoctorNoteModal(patientId, root) {
+    const patient = window._currentPatient;
+    const select = document.getElementById('dnEncounterSelect');
+    select.innerHTML = (patient?.encounters || []).map((e) =>
+        `<option value="${escapeHtml(e.id)}">${escapeHtml(formatDateTime(e.encounterDateTime))} — ${escapeHtml(truncate(e.chiefComplaint || '', 50))}</option>`
+    ).join('');
+    document.getElementById('dnNoteText').value = '';
+    document.getElementById('dnNoteType').value = 'DOCTORS_NOTE';
+    document.getElementById('dnErrorSection').style.display = 'none';
+    const modal = document.getElementById('doctorNoteModal');
+    modal.dataset.patientId = patientId;
+    modal.style.display = 'flex';
+    _dnRoot = root;
+}
+
 function wirePatientTabs(root) {
     const tabs = root.querySelectorAll('.patient-tabs [role="tab"]');
     const panels = root.querySelectorAll('.patient-tab-panel');
@@ -393,6 +452,9 @@ function wirePatientTabs(root) {
             const id = btn.getAttribute('data-tab');
             tabs.forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
             syncPanels(id);
+            if (id === 'notes' && window._currentPatient) {
+                loadDoctorNotes(window._currentPatient.id, root);
+            }
         });
     });
 
@@ -400,6 +462,7 @@ function wirePatientTabs(root) {
 }
 
 function renderDetail(p) {
+    window._currentPatient = p;
     const dob = p.dateOfBirth;
     const age = ageFromDob(dob);
     const badges = [];
@@ -463,6 +526,7 @@ function renderDetail(p) {
                 <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="care" id="ptab-care">Care plans</button>
                 <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="immunizations" id="ptab-immunizations">Immunizations</button>
                 <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="observations" id="ptab-observations">Observations</button>
+                <button type="button" class="patient-tab" role="tab" aria-selected="false" data-tab="notes" id="ptab-notes">Doctor's notes</button>
             </div>
         </div>
         <div class="patient-tab-panels">
@@ -473,9 +537,12 @@ function renderDetail(p) {
             <div class="patient-tab-panel" role="tabpanel" data-tabpanel="care" aria-labelledby="ptab-care" aria-hidden="true">${renderCarePlansPanel(p.carePlans)}</div>
             <div class="patient-tab-panel" role="tabpanel" data-tabpanel="immunizations" aria-labelledby="ptab-immunizations" aria-hidden="true">${renderImmunizationsPanel(p.immunizations)}</div>
             <div class="patient-tab-panel" role="tabpanel" data-tabpanel="observations" aria-labelledby="ptab-observations" aria-hidden="true">${renderObservationsPanel(p.observations)}</div>
+            <div class="patient-tab-panel" role="tabpanel" data-tabpanel="notes" aria-labelledby="ptab-notes" aria-hidden="true">${renderDoctorNotesPanel([], p.id)}</div>
         </div>`;
 
     wirePatientTabs(detailBody);
+    // Wire the initial "Add note" button rendered in the notes panel placeholder
+    wireAddNoteButton(detailBody.querySelector('[data-tabpanel="notes"]'), p.id, detailBody);
 }
 
 async function selectPatient(id) {
@@ -512,4 +579,51 @@ document.addEventListener('DOMContentLoaded', () => {
             loadPatientList();
         }, 300)
     );
+
+    // Doctor's note modal — close handlers
+    const dnModal = document.getElementById('doctorNoteModal');
+    document.getElementById('dnModalClose').addEventListener('click', () => { dnModal.style.display = 'none'; });
+    document.getElementById('dnCancelBtn').addEventListener('click', () => { dnModal.style.display = 'none'; });
+    dnModal.addEventListener('click', (e) => { if (e.target === dnModal) dnModal.style.display = 'none'; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dnModal.style.display === 'flex') dnModal.style.display = 'none'; });
+
+    // Doctor's note modal — submit handler
+    document.getElementById('dnSubmitBtn').addEventListener('click', async () => {
+        const patientId = dnModal.dataset.patientId;
+        const encounterId = document.getElementById('dnEncounterSelect').value;
+        const noteText = document.getElementById('dnNoteText').value.trim();
+        const noteType = document.getElementById('dnNoteType').value;
+        const errEl = document.getElementById('dnErrorSection');
+        const submitBtn = document.getElementById('dnSubmitBtn');
+
+        if (!noteText) {
+            errEl.textContent = 'Note text is required.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
+        errEl.style.display = 'none';
+
+        try {
+            const res = await fetch(`${API}/${encodeURIComponent(patientId)}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encounterId, noteText, noteType }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || res.statusText);
+            }
+            dnModal.style.display = 'none';
+            if (_dnRoot) loadDoctorNotes(patientId, _dnRoot);
+        } catch (e) {
+            errEl.textContent = e.message || 'Failed to save note.';
+            errEl.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save note';
+        }
+    });
 });

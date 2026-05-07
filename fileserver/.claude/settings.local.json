@@ -4,7 +4,17 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\" -Recurse -Filter \"*.js\")",
       "Bash(Select-Object -First 50)",
       "Bash(Format-Table FullName)",
-      "PowerShell(node --check \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\\\\prisma\\\\seed.js\"; if \\($?\\) { \"SYNTAX OK\" } else { \"SYNTAX ERROR\" })"
+      "PowerShell(node --check \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\\\\prisma\\\\seed.js\"; if \\($?\\) { \"SYNTAX OK\" } else { \"SYNTAX ERROR\" })",
+      "Bash(Get-Content \"C:\\\\Users\\\\umarj\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-umarj-node-smart-doc-fileserver\\\\57b6b5e2-e4d6-47f8-9921-ece6be6f91bc\\\\tasks\\\\b2kssqynw.output\" -Wait)",
+      "Bash(Select-String --line-buffered \"200/200|Seed complete|Seed failed|Error|error\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\fileserver\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(grep -r \"\\\\.query\\\\|\\\\.raw\\\\|sql\\\\`\" src --include=\"*.js\")",
+      "Bash(xargs wc -l)"
     ]
   }
 }

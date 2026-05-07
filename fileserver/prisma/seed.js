@@ -2,7 +2,10 @@
 
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: { db: { url: process.env.POSTGRES_CONNECTION_STRING } },
+  log: ['error'],
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -827,20 +830,55 @@ async function seedPatient(patientData) {
 }
 
 // ---------------------------------------------------------------------------
+// Retry helper — reconnects Prisma on P1017 (server closed connection)
+// ---------------------------------------------------------------------------
+
+async function withReconnect(fn, label, retries = 5) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isConnErr =
+        err.code === 'P1017' ||
+        (err.message && err.message.includes('Server has closed the connection'));
+      if (isConnErr && attempt < retries) {
+        console.log(`  [${label}] connection lost — reconnecting (attempt ${attempt}/${retries - 1})...`);
+        try { await prisma.$disconnect(); } catch (_) {}
+        await new Promise(r => setTimeout(r, 3000 * attempt));
+        try { await prisma.$connect(); } catch (_) {}
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
+  console.log('Cleaning up previous MRN-2020-* seed data...');
+  const deleted = await prisma.patient.deleteMany({
+    where: { medicalRecordNumber: { startsWith: 'MRN-2020-' } },
+  });
+  if (deleted.count > 0) console.log(`  Removed ${deleted.count} existing patients (cascaded)\n`);
+
   console.log('Seeding EHR data — 200 patients...\n');
 
   const patients = generatePatients(200);
 
-  // Process in batches of 10 to avoid overwhelming DB connections
-  const BATCH_SIZE = 10;
-  for (let i = 0; i < patients.length; i += BATCH_SIZE) {
-    const batch = patients.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map(p => seedPatient(p)));
-    console.log(`  Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(patients.length / BATCH_SIZE)} complete`);
+  for (let i = 0; i < patients.length; i++) {
+    const p = patients[i];
+    await withReconnect(async () => {
+      // Remove any partial data from a previous failed attempt for this patient
+      await prisma.patient.deleteMany({ where: { medicalRecordNumber: p.medicalRecordNumber } });
+      await seedPatient(p);
+    }, p.medicalRecordNumber);
+
+    if ((i + 1) % 10 === 0) {
+      console.log(`  ${i + 1}/200 patients seeded`);
+    }
   }
 
   console.log('\nSeed complete. 200 patients created with full clinical records.');

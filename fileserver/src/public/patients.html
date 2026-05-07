@@ -78,6 +78,43 @@
         </div>
     </main>
 
+    <!-- Doctor's Note Modal -->
+    <div class="modal-overlay" id="doctorNoteModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="dnModalTitle">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="dnModalTitle">Add Doctor's Note</h3>
+                <button class="modal-close" id="dnModalClose" aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="dnErrorSection" class="error-section" style="display:none;"></div>
+                <div class="form-group">
+                    <label class="form-label" for="dnEncounterSelect">Encounter</label>
+                    <select id="dnEncounterSelect" class="input"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="dnNoteType">Note type</label>
+                    <select id="dnNoteType" class="input">
+                        <option value="DOCTORS_NOTE">Doctor's Note</option>
+                        <option value="SOAP">SOAP Note</option>
+                        <option value="PROGRESS">Progress Note</option>
+                        <option value="CONSULTATION">Consultation</option>
+                        <option value="DISCHARGE">Discharge Summary</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="dnNoteText">Note</label>
+                    <textarea id="dnNoteText" class="input" rows="7" placeholder="Enter doctor's note…" style="resize:vertical;width:100%;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="dnCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="dnSubmitBtn">Save note</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/patients.js"></script>
 </body>
 </html>

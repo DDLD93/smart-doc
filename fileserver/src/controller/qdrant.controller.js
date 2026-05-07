@@ -18,6 +18,7 @@ class QdrantController {
         console.log(`[Qdrant] Initializing client URL=${url} auth=${apiKey ? 'yes' : 'no'}`);
         this.client = new QdrantClient({ url, apiKey, checkCompatibility: false });
         await this.ensureCollection(this.collectionName, this.vectorSize, this.distance);
+        await this.ensureDoctorNotesCollection();
     }
 
     async ensureCollection(collectionName, vectorSize, distance) {
@@ -118,6 +119,32 @@ class QdrantController {
             filter: { must: [{ key: 'fileId', match: { value: fileId } }] },
             wait: true,
         });
+    }
+
+    async ensureDoctorNotesCollection() {
+        const name = process.env.QDRANT_DOCTOR_NOTES_COLLECTION || 'doctor_notes';
+        await this.ensureCollection(name, this.vectorSize, this.distance);
+        for (const def of [
+            { field_name: 'patientId',   field_schema: 'keyword' },
+            { field_name: 'encounterId', field_schema: 'keyword' },
+            { field_name: 'createdAt',   field_schema: 'keyword' },
+        ]) {
+            try { await this.client.createPayloadIndex(name, { ...def, wait: true }); } catch (_) {}
+        }
+        return name;
+    }
+
+    async scrollDoctorNotes(patientId, encounterId = null) {
+        const name = process.env.QDRANT_DOCTOR_NOTES_COLLECTION || 'doctor_notes';
+        const must = [{ key: 'patientId', match: { value: patientId } }];
+        if (encounterId) must.push({ key: 'encounterId', match: { value: encounterId } });
+        const res = await this.client.scroll(name, {
+            filter: { must },
+            with_payload: true,
+            with_vector: false,
+            limit: 200,
+        });
+        return res?.points || [];
     }
 
     async countByFileId(collectionName, fileId) {

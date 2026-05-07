@@ -43,6 +43,12 @@ const jobsRoutes = require('./route/jobs.route');
 app.use('/jobs', jobsRoutes);
 const patientRoutes = require('./route/patient.route');
 app.use('/api/patients', patientRoutes);
+const doctorNoteRoutes = require('./route/doctorNote.route');
+app.use('/api/patients/:id/notes', doctorNoteRoutes);
+const searchRoutes = require('./route/search.route');
+app.use('/api/search', searchRoutes);
+const agentRoutes = require('./route/agent.route');
+app.use('/agent', agentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
