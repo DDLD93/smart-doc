@@ -26,8 +26,8 @@ type RequestOptions = {
 };
 
 function sanitizeBaseUrl(baseUrl?: string) {
-	const raw = baseUrl || process.env.FILESERVER_BASE_URL || "http://localhost:3000";
-	return raw.replace(/\/+$/, "");
+	const raw = baseUrl || process.env.FILESERVER_BASE_URL;
+	return raw?.replace(/\/+$/, "");
 }
 
 function buildQueryString(query?: Record<string, Primitive | null | undefined>) {
