@@ -13,10 +13,10 @@ if (!connectionString) {
 }
 
 export const mastra = new Mastra({
-  workflows: {
-    ragWorkflow,
-    textToSqlWorkflow,
-  },
+  // workflows: {
+  //   ragWorkflow,
+  //   textToSqlWorkflow,
+  // },
   agents: { qaAgent },
   storage: new PostgresStore({
     id: "mastra-db",

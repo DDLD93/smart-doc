@@ -1,8 +1,6 @@
 'use strict';
 
 const { PrismaClient } = require('@prisma/client');
-const fs = require('fs');
-const path = require('path');
 
 const prisma = new PrismaClient({
   datasources: { db: { url: process.env.POSTGRES_CONNECTION_STRING } },
@@ -41,98 +39,6 @@ function addHours(date, hours) {
 
 function addDays(date, days) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-const PATIENTS_JSON_PATH = 'C:/Users/umarj/OneDrive/Desktop/smart-doc/patients.json';
-const DOCTOR_NOTES_DIR = path.resolve(__dirname, '../docs/doctor-notes');
-
-function normalizeEnum(value, allowedValues, fallback) {
-  if (value === null || value === undefined || value === '') return fallback;
-  const normalized = String(value).trim().toUpperCase();
-  return allowedValues.includes(normalized) ? normalized : fallback;
-}
-
-function parseDateOrNull(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function loadPatientsFromJson(filePath) {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const parsed = JSON.parse(raw);
-  const records = Array.isArray(parsed)
-    ? parsed
-    : (parsed && typeof parsed === 'object' && Array.isArray(parsed.patients) ? parsed.patients : []);
-
-  return records
-    .map((entry) => entry?.patient)
-    .filter((patient) => patient && patient.medicalRecordNumber);
-}
-
-function parseDoctorNoteFilename(filename) {
-  const match = filename.match(/^(NN-\d{5})_([^_]+(?:_[^_]+)*)_(\d+)\.md$/);
-  if (!match) return null;
-  return {
-    mrn: match[1],
-    conditionSlug: match[2],
-    noteIndex: Number(match[3]),
-  };
-}
-
-function loadDoctorNotes(dirPath) {
-  if (!fs.existsSync(dirPath)) return [];
-
-  const files = fs.readdirSync(dirPath)
-    .filter((name) => name.endsWith('.md'))
-    .sort((a, b) => a.localeCompare(b));
-
-  const notes = [];
-  for (const filename of files) {
-    const parsedName = parseDoctorNoteFilename(filename);
-    if (!parsedName) continue;
-    const absolutePath = path.join(dirPath, filename);
-    const noteText = fs.readFileSync(absolutePath, 'utf8').trim();
-    notes.push({
-      ...parsedName,
-      filename,
-      noteText,
-    });
-  }
-  return notes;
-}
-
-function mapPatientToPrismaData(patient) {
-  return {
-    medicalRecordNumber: patient.medicalRecordNumber,
-    firstName: patient.firstName || 'Unknown',
-    middleName: patient.middleName || null,
-    lastName: patient.lastName || 'Unknown',
-    dateOfBirth: parseDateOrNull(patient.dateOfBirth) || new Date('1970-01-01'),
-    sex: normalizeEnum(patient.sex, ['MALE', 'FEMALE', 'INTERSEX', 'UNKNOWN'], 'UNKNOWN'),
-    bloodGroup: normalizeEnum(patient.bloodGroup, ['A_POS', 'A_NEG', 'B_POS', 'B_NEG', 'AB_POS', 'AB_NEG', 'O_POS', 'O_NEG', 'UNKNOWN'], 'UNKNOWN'),
-    genotype: normalizeEnum(patient.genotype, ['AA', 'AS', 'SS', 'AC', 'SC', 'UNKNOWN'], 'UNKNOWN'),
-    baselineHeightCm: patient.baselineHeightCm ?? null,
-    baselineWeightKg: patient.baselineWeightKg ?? null,
-    deceased: Boolean(patient.deceased),
-    deceasedDate: parseDateOrNull(patient.deceasedDate),
-    organDonor: patient.organDonor === null || patient.organDonor === undefined ? null : Boolean(patient.organDonor),
-  };
-}
-
-function noteTypeFromText(noteText) {
-  const text = (noteText || '').toUpperCase();
-  if (text.includes('S:') && text.includes('O:') && text.includes('A:') && text.includes('P:')) {
-    return 'SOAP';
-  }
-  return 'PROGRESS';
-}
-
-function chiefComplaintFromSlug(conditionSlug) {
-  return conditionSlug
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 function pad(n, width = 4) {
@@ -789,37 +695,138 @@ async function seedEncounter(patient, encounter) {
 // Patient seeding
 // ---------------------------------------------------------------------------
 
-async function seedPatientFromSources(patientData, doctorNotes) {
-  const patient = await prisma.patient.create({ data: mapPatientToPrismaData(patientData) });
-  let createdEncounters = 0;
-  let createdNotes = 0;
+async function seedPatient(patientData) {
+  const patient = await prisma.patient.create({ data: patientData });
 
-  for (let i = 0; i < doctorNotes.length; i++) {
-    const note = doctorNotes[i];
-    const encounterDate = addDays(new Date('2026-01-01'), i);
+  // Allergies (2–4)
+  const chosenAllergens = pickMany(ALLERGENS, 2, 4);
+  await prisma.allergy.createMany({
+    data: chosenAllergens.map(a => ({
+      patientId: patient.id,
+      allergen: a.allergen,
+      reaction: a.reaction,
+      severity: a.severity,
+      onsetDate: randDate(new Date('2005-01-01'), new Date('2022-12-31')),
+      status: a.status,
+    })),
+  });
+
+  // Medical history (2–4)
+  const chosenConditions = pickMany(CONDITIONS, 2, 4);
+  await prisma.medicalHistory.createMany({
+    data: chosenConditions.map(c => ({
+      patientId: patient.id,
+      conditionCode: c.code,
+      conditionName: c.name,
+      diagnosisDate: randDate(new Date('2000-01-01'), new Date('2022-12-31')),
+      chronicity: c.chronicity,
+      familyHistory: c.family,
+    })),
+  });
+
+  // Immunizations (3–5)
+  const chosenVaccines = pickMany(VACCINES, 3, 5);
+  await prisma.immunization.createMany({
+    data: chosenVaccines.map(v => ({
+      patientId: patient.id,
+      vaccineCode: v.code,
+      vaccineName: v.name,
+      doseNumber: randInt(v.minDose, v.maxDose),
+      administrationDate: randDate(new Date('2000-01-01'), new Date('2024-06-30')),
+    })),
+  });
+
+  // Patient-level observations (2–4)
+  const chosenObsTypes = pickMany(OBSERVATION_TYPES, 2, 4);
+  await prisma.observation.createMany({
+    data: chosenObsTypes.map(o => ({
+      patientId: patient.id,
+      observationType: o.type,
+      value: String(randFloat(1, 100, 1)),
+      unit: o.unit,
+      interpretation: pick(o.interp),
+      observedAt: randDate(new Date('2023-01-01'), new Date('2024-12-31')),
+    })),
+  });
+
+  // Encounters (3–6)
+  const numEncounters = randInt(3, 6);
+  const encounterDates = Array.from({ length: numEncounters }, () =>
+    randDate(new Date('2020-01-01'), new Date('2024-11-30'))
+  ).sort((a, b) => a - b);
+
+  const chiefComplaints = [
+    'Persistent cough and shortness of breath',
+    'Fever, chills, and body aches for 3 days',
+    'Severe headache and blurred vision',
+    'Abdominal pain, nausea, and vomiting',
+    'Chest pain and palpitations',
+    'Generalised body weakness and fatigue',
+    'Dysuria and increased urinary frequency',
+    'Low back pain radiating to right leg',
+    'Rash and pruritus for 2 weeks',
+    'Loss of appetite, weight loss, and night sweats',
+    'Swelling of both legs for 1 week',
+    'Diarrhoea and vomiting for 2 days',
+    'High blood sugar readings at home',
+    'Uncontrolled blood pressure despite medications',
+    'Joint pain and morning stiffness',
+    'Convulsions and loss of consciousness',
+    'Productive cough with blood-tinged sputum',
+    'Blurred vision and eye pain',
+    'Difficulty swallowing and heartburn',
+    'Wound infection not healing',
+  ];
+
+  const firstDiagnosisOfPatient = { value: null };
+
+  for (const dt of encounterDates) {
+    const type = pick(ENCOUNTER_TYPES);
+    const disposition = type === 'INPATIENT' ? pick(['ADMITTED','REFERRED','TRANSFERRED']) :
+                        type === 'EMERGENCY' ? pick(['ADMITTED','DISCHARGED','REFERRED']) :
+                        pick(['DISCHARGED','REFERRED','ONGOING']);
     const encounter = await prisma.encounter.create({
       data: {
         patientId: patient.id,
-        encounterType: 'OUTPATIENT',
-        encounterDateTime: encounterDate,
-        chiefComplaint: chiefComplaintFromSlug(note.conditionSlug),
-        clinicalSummary: `Imported from doctor note file ${note.filename}.`,
-        disposition: 'DISCHARGED',
+        encounterType: type,
+        encounterDateTime: dt,
+        chiefComplaint: pick(chiefComplaints),
+        clinicalSummary: `Patient presented to the ${type.toLowerCase()} department. Examination and investigations completed.`,
+        disposition,
       },
     });
-    createdEncounters += 1;
-
-    await prisma.clinicalNote.create({
-      data: {
-        encounterId: encounter.id,
-        noteType: noteTypeFromText(note.noteText),
-        noteText: note.noteText || `Imported note from ${note.filename}.`,
-      },
-    });
-    createdNotes += 1;
+    const firstDiag = await seedEncounter(patient, encounter);
+    if (!firstDiagnosisOfPatient.value && firstDiag) {
+      firstDiagnosisOfPatient.value = firstDiag;
+    }
   }
 
-  return { patient, createdEncounters, createdNotes };
+  // Care plans (1–3)
+  const numCarePlans = randInt(1, 3);
+  for (let i = 0; i < numCarePlans; i++) {
+    const goals = pickMany(CARE_PLAN_GOALS, 2, 4);
+    const interventions = pickMany(CARE_PLAN_INTERVENTIONS, 3, 5);
+    await prisma.carePlan.create({
+      data: {
+        patientId: patient.id,
+        diagnosisId: i === 0 ? (firstDiagnosisOfPatient.value?.id ?? null) : null,
+        goals,
+        interventions,
+        monitoringPlan: pick([
+          'Monthly clinic review with BP and blood glucose monitoring.',
+          'Biweekly wound assessment and dressing changes.',
+          'Weekly LFT and RFT monitoring during treatment.',
+          'Three-monthly HbA1c, lipid panel, and renal function.',
+          'Monthly weight, fluid balance, and electrolyte monitoring.',
+          'Six-monthly echo and BNP for cardiac function assessment.',
+        ]),
+        reviewDate: addDays(new Date(), randInt(14, 90)),
+        status: pick(['ACTIVE','ACTIVE','ACTIVE','COMPLETED','ON_HOLD']),
+      },
+    });
+  }
+
+  console.log(`  [${patientData.medicalRecordNumber}] ${patient.firstName} ${patient.lastName}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -851,54 +858,30 @@ async function withReconnect(fn, label, retries = 5) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const patients = loadPatientsFromJson(PATIENTS_JSON_PATH);
-  const doctorNotes = loadDoctorNotes(DOCTOR_NOTES_DIR);
-  const notesByMrn = new Map();
-  for (const note of doctorNotes) {
-    if (!notesByMrn.has(note.mrn)) notesByMrn.set(note.mrn, []);
-    notesByMrn.get(note.mrn).push(note);
-  }
+  console.log('Cleaning up previous MRN-2020-* seed data...');
+  const deleted = await prisma.patient.deleteMany({
+    where: { medicalRecordNumber: { startsWith: 'MRN-2020-' } },
+  });
+  if (deleted.count > 0) console.log(`  Removed ${deleted.count} existing patients (cascaded)\n`);
 
-  const patientMrnSet = new Set(patients.map((p) => p.medicalRecordNumber));
-  const notesWithKnownPatient = doctorNotes.filter((note) => patientMrnSet.has(note.mrn)).length;
-  const unknownNoteMrns = [...new Set(doctorNotes.filter((note) => !patientMrnSet.has(note.mrn)).map((note) => note.mrn))];
+  console.log('Seeding EHR data — 200 patients...\n');
 
-  console.log('Clearing existing EHR records rooted at Patient...');
-  const deleted = await prisma.patient.deleteMany({});
-  console.log(`  Removed ${deleted.count} existing patients (cascaded)\n`);
-
-  console.log(`Loaded ${patients.length} patients from JSON`);
-  console.log(`Loaded ${doctorNotes.length} doctor notes from ${DOCTOR_NOTES_DIR}`);
-  console.log(`Notes matched to known patients: ${notesWithKnownPatient}`);
-  console.log(`Notes with unknown MRN: ${unknownNoteMrns.length}\n`);
-  if (unknownNoteMrns.length > 0) {
-    console.warn(`  Skipping unknown MRNs: ${unknownNoteMrns.slice(0, 20).join(', ')}${unknownNoteMrns.length > 20 ? ' ...' : ''}`);
-  }
-
-  let createdPatients = 0;
-  let createdEncounters = 0;
-  let createdClinicalNotes = 0;
+  const patients = generatePatients(200);
 
   for (let i = 0; i < patients.length; i++) {
     const p = patients[i];
-    const notesForPatient = (notesByMrn.get(p.medicalRecordNumber) || []).sort((a, b) => a.filename.localeCompare(b.filename));
     await withReconnect(async () => {
-      const result = await seedPatientFromSources(p, notesForPatient);
-      createdPatients += 1;
-      createdEncounters += result.createdEncounters;
-      createdClinicalNotes += result.createdNotes;
+      // Remove any partial data from a previous failed attempt for this patient
+      await prisma.patient.deleteMany({ where: { medicalRecordNumber: p.medicalRecordNumber } });
+      await seedPatient(p);
     }, p.medicalRecordNumber);
 
-    if ((i + 1) % 25 === 0 || i + 1 === patients.length) {
-      console.log(`  ${i + 1}/${patients.length} patients ingested`);
+    if ((i + 1) % 10 === 0) {
+      console.log(`  ${i + 1}/200 patients seeded`);
     }
   }
 
-  console.log('\nSeed complete.');
-  console.log(`  Patients created: ${createdPatients}`);
-  console.log(`  Encounters created: ${createdEncounters}`);
-  console.log(`  Clinical notes created: ${createdClinicalNotes}`);
-  console.log(`  Notes skipped (unknown MRN): ${unknownNoteMrns.length}`);
+  console.log('\nSeed complete. 200 patients created with full clinical records.');
 }
 
 main()

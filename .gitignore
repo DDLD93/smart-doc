@@ -9,3 +9,4 @@
 *.log
 
 */prisma/migrations
+/fileserver/docs/*

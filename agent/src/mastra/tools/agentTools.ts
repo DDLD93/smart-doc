@@ -2,7 +2,8 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { requestAgentApi } from "./agentApiClient";
 
-const qdrantFilterSchema = z.record(z.any());
+const qdrantFilterSchema = z.record(z.unknown());
+const sqlParamSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const dateTimeString = z.string().datetime().or(z.string().min(1));
 const paginationTake = z.number().int().min(1).max(200).optional();
 const paginationSkip = z.number().int().min(0).optional();
@@ -12,7 +13,7 @@ const searchResponseSchema = z.object({
 	limit: z.number(),
 	collection: z.string(),
 	total: z.number(),
-	results: z.array(z.any()),
+	results: z.array(z.unknown()),
 });
 
 const listResponseSchema = z
@@ -258,7 +259,7 @@ export const runSqlQueryTool = createTool({
 	description: "Execute a read-only SELECT query against the EHR database.",
 	inputSchema: z.object({
 		sql: z.string().min(1),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 		limit: z.number().int().min(1).max(500).optional(),
 		baseUrl: z.string().url().optional(),
 	}),

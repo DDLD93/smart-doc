@@ -29,7 +29,7 @@ const acceptQuestionStep = createStep({
 	inputSchema: z.object({
 		question: z.string().describe("The natural language question to process"),
 		topK: z.number().optional().describe("Number of results to retrieve"),
-		filter: z.any().optional().describe("Optional filter for search"),
+		filter: z.record(z.unknown()).optional().describe("Optional filter for search"),
 		patientId: z.string().optional().describe("Optional patient filter"),
 		fileId: z.string().optional().describe("Optional file filter"),
 		encounterId: z.string().optional().describe("Optional encounter filter"),
@@ -38,7 +38,7 @@ const acceptQuestionStep = createStep({
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		topK: z.number(),
-		filter: z.any().optional(),
+		filter: z.record(z.unknown()).optional(),
 		patientId: z.string().optional(),
 		fileId: z.string().optional(),
 		encounterId: z.string().optional(),
@@ -63,7 +63,7 @@ const refineQuestionStep = createStep({
 	inputSchema: z.object({
 		originalQuestion: z.string(),
 		topK: z.number(),
-		filter: z.any().optional(),
+		filter: z.record(z.unknown()).optional(),
 		patientId: z.string().optional(),
 		fileId: z.string().optional(),
 		encounterId: z.string().optional(),
@@ -73,7 +73,7 @@ const refineQuestionStep = createStep({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		topK: z.number(),
-		filter: z.any().optional(),
+		filter: z.record(z.unknown()).optional(),
 		patientId: z.string().optional(),
 		fileId: z.string().optional(),
 		encounterId: z.string().optional(),
@@ -114,7 +114,7 @@ const ragRetrieverStep = createStep({
         originalQuestion: z.string(),
         refinedQuestion: z.string(),
         topK: z.number(),
-        filter: z.any().optional(),
+        filter: z.record(z.unknown()).optional(),
         patientId: z.string().optional(),
         fileId: z.string().optional(),
         encounterId: z.string().optional(),
@@ -134,7 +134,7 @@ const ragRetrieverStep = createStep({
             })
         ),
         relevantContext: z.string(),
-        sources: z.array(z.any()),
+        sources: z.array(z.unknown()),
     }),
     execute: async ({ inputData }) => {
         const { originalQuestion, refinedQuestion, topK, filter, patientId, fileId, encounterId, baseUrl } = inputData;
@@ -185,18 +185,18 @@ const synthesizeInformationStep = createStep({
                 originalName: z.string().optional(),
                 chunk: z.string(),
                 page: z.number().optional(),
-				payload: z.any().optional(),
+				payload: z.unknown().optional(),
             })
         ),
 		relevantContext: z.string(),
-		sources: z.array(z.any()),
+		sources: z.array(z.unknown()),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		relevantContext: z.string(),
 		synthesizedResponse: z.string(),
-		sources: z.array(z.any()),
+		sources: z.array(z.unknown()),
 		searchSuccess: z.boolean(),
 	}),
 	execute: async ({ inputData }) => {
@@ -244,7 +244,7 @@ export const ragWorkflow = createWorkflow({
 	inputSchema: z.object({
 		question: z.string().describe("Natural language question to search for"),
 		topK: z.number().optional().describe("Number of results to retrieve (default: 10)"),
-		filter: z.any().optional().describe("Optional filter for search"),
+		filter: z.record(z.unknown()).optional().describe("Optional filter for search"),
 		patientId: z.string().optional(),
 		fileId: z.string().optional(),
 		encounterId: z.string().optional(),
@@ -255,7 +255,7 @@ export const ragWorkflow = createWorkflow({
 		refinedQuestion: z.string(),
 		relevantContext: z.string(),
 		synthesizedResponse: z.string(),
-		sources: z.array(z.any()),
+		sources: z.array(z.unknown()),
 		searchSuccess: z.boolean(),
 	}),
 })

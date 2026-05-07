@@ -55,7 +55,7 @@ export const ragRetrieverTool = createTool({
         patientId: z.string().optional(),
         fileId: z.string().optional(),
         encounterId: z.string().optional(),
-        filter: z.any().optional().describe("Optional metadata filter for search"),
+        filter: z.record(z.unknown()).optional().describe("Optional metadata filter for search"),
         baseUrl: z.string().url().optional(),
     }),
     outputSchema: z.object({
@@ -66,7 +66,7 @@ export const ragRetrieverTool = createTool({
                 originalName: z.string().optional(),
                 chunk: z.string(),
                 page: z.number().optional(),
-                payload: z.any().optional(),
+                payload: z.unknown().optional(),
             })
         ),
     }),

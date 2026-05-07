@@ -3,6 +3,8 @@ import { z } from "zod";
 import { Agent } from "@mastra/core/agent";
 import { requestAgentApi } from "../tools/agentApiClient";
 
+const sqlParamSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
 // Agent for question refinement
 const questionRefinementAgent = new Agent({
 	id: "question-refinement-agent",
@@ -38,14 +40,14 @@ const acceptQuestionStep = createStep({
 		schemaDescription: z.string().optional().describe("Optional database schema description"),
 		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
 		limit: z.number().int().min(1).max(500).optional().describe("Result limit"),
-		params: z.array(z.any()).optional().describe("Optional SQL positional params"),
+		params: z.array(sqlParamSchema).optional().describe("Optional SQL positional params"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		schemaDescription: z.string().optional(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		return {
@@ -66,7 +68,7 @@ const refineQuestionStep = createStep({
 		schemaDescription: z.string().optional(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
@@ -74,7 +76,7 @@ const refineQuestionStep = createStep({
 		schemaDescription: z.string().optional(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		const { originalQuestion, schemaDescription, baseUrl, limit, params } = inputData;
@@ -102,7 +104,7 @@ const translateToSqlStep = createStep({
 		schemaDescription: z.string().optional(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
@@ -111,7 +113,7 @@ const translateToSqlStep = createStep({
 		generatedSql: z.string(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		const { refinedQuestion, schemaDescription, baseUrl, limit, params } = inputData;
@@ -159,7 +161,7 @@ const validateSqlStep = createStep({
 		generatedSql: z.string(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
@@ -170,7 +172,7 @@ const validateSqlStep = createStep({
 		isValid: z.boolean(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	execute: async ({ inputData }) => {
 		const { generatedSql, relevantSchema } = inputData;
@@ -213,14 +215,14 @@ const executeQueryStep = createStep({
 		isValid: z.boolean(),
 		baseUrl: z.string().optional(),
 		limit: z.number().optional(),
-		params: z.array(z.any()).optional(),
+		params: z.array(sqlParamSchema).optional(),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		sql: z.string(),
 		validationResult: z.string(),
-		rows: z.array(z.any()),
+		rows: z.array(z.unknown()),
 		executionError: z.string().optional(),
 		executionSuccess: z.boolean(),
 	}),
@@ -283,14 +285,14 @@ export const textToSqlWorkflow = createWorkflow({
 		schemaDescription: z.string().optional().describe("Optional database schema description"),
 		baseUrl: z.string().optional().describe("Optional fileserver base URL"),
 		limit: z.number().int().min(1).max(500).optional().describe("Optional result row limit"),
-		params: z.array(z.any()).optional().describe("Optional SQL positional parameters"),
+		params: z.array(sqlParamSchema).optional().describe("Optional SQL positional parameters"),
 	}),
 	outputSchema: z.object({
 		originalQuestion: z.string(),
 		refinedQuestion: z.string(),
 		sql: z.string(),
 		validationResult: z.string(),
-		rows: z.array(z.any()),
+		rows: z.array(z.unknown()),
 		executionError: z.string().optional(),
 		executionSuccess: z.boolean(),
 	}),

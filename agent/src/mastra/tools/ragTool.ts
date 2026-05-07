@@ -8,7 +8,7 @@ export const ragTool = createTool({
 	inputSchema: z.object({
 		queryText: z.string().describe("The natural language question to search for"),
 		topK: z.number().optional().describe("Number of results to retrieve (default: 10)"),
-		filter: z.any().optional().describe("Optional filter for search"),
+		filter: z.record(z.unknown()).optional().describe("Optional filter for search"),
 		patientId: z.string().optional(),
 		fileId: z.string().optional(),
 		encounterId: z.string().optional(),
@@ -19,7 +19,7 @@ export const ragTool = createTool({
 		refinedQuestion: z.string().describe("The refined and optimized question"),
 		relevantContext: z.string().describe("The relevant context found in the knowledge base"),
 		synthesizedResponse: z.string().describe("AI-synthesized response based on the search results"),
-		sources: z.array(z.any()).describe("Source documents and metadata"),
+		sources: z.array(z.unknown()).describe("Source documents and metadata"),
 		searchSuccess: z.boolean().describe("Whether the search found relevant information")
 	}),
 	execute: async (inputData, _context) => {

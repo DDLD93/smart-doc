@@ -10,14 +10,14 @@ export const ragHttpSearchTool = createTool({
         limit: z.number().int().min(1).max(50).optional().describe("Number of results to retrieve"),
         patientId: z.string().optional().describe("Optional patient filter"),
         fileId: z.string().optional().describe("Optional file filter"),
-        filter: z.any().optional().describe("Optional Qdrant filter object"),
+        filter: z.record(z.unknown()).optional().describe("Optional Qdrant filter object"),
         baseUrl: z
             .string()
             .optional()
             .describe("Base URL of fileserver (defaults to http://localhost:3000)"),
     }),
     outputSchema: z.object({
-        results: z.array(z.any()),
+        results: z.array(z.unknown()),
     }),
     execute: async (inputData, _context) => {
         const { query, limit, filter, baseUrl, patientId, fileId } = inputData;

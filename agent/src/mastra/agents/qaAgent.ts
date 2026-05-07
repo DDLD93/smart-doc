@@ -93,7 +93,7 @@ Response policy:
 - Then provide concise evidence summary (which tools/data informed the answer).
 - If uncertainty remains, state it explicitly and propose the next best action.
 `,
-	model: "google/gemini-2.5-flash",
+	model: 'google/gemini-2.5-pro',
 	tools: {
 		// Legacy compatibility aliases
 		ragTool,
@@ -118,6 +118,6 @@ Response policy:
 		getSqlSchemaTool,
 		runSqlQueryTool,
 	},
-	workflows: { ragWorkflow, textToSqlWorkflow },
-	// memory,
+	// workflows: { ragWorkflow, textToSqlWorkflow },
+	memory,
 });
