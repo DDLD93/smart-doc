@@ -119,5 +119,5 @@ Response policy:
 		runSqlQueryTool,
 	},
 	workflows: { ragWorkflow, textToSqlWorkflow },
-	memory,
+	// memory,
 });
