@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\" -Recurse -Filter \"*.ts\" -Filter \"*.tsx\")",
+      "Bash(Select-Object -First 50)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(npx tsc *)",
+      "Bash(npx mastra *)",
+      "Bash(Remove-Item src\\\\mastra\\\\tools\\\\ragTool.ts, src\\\\mastra\\\\tools\\\\textToSqlTool.ts, src\\\\mastra\\\\tools\\\\ragRetriever.ts, src\\\\mastra\\\\tools\\\\ragHttpSearchTool.ts, src\\\\mastra\\\\workflows\\\\ragWorkFlow.ts, src\\\\mastra\\\\workflows\\\\textToSqlTool.ts -Force)"
+    ]
+  }
+}

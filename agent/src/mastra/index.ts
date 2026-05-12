@@ -1,10 +1,8 @@
-
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { PostgresStore } from '@mastra/pg';
-import { ragWorkflow } from './workflows/ragWorkFlow';
-import { textToSqlWorkflow } from './workflows/textToSqlTool';
 import { qaAgent } from './agents/qaAgent';
+import { clinicalQueryWorkflow } from './workflows/clinicalQueryWorkflow';
 
 const connectionString = process.env.POSTGRES_CONNECTION_STRING ?? process.env.DATABASE_URL;
 
@@ -13,10 +11,7 @@ if (!connectionString) {
 }
 
 export const mastra = new Mastra({
-  // workflows: {
-  //   ragWorkflow,
-  //   textToSqlWorkflow,
-  // },
+  workflows: { clinicalQueryWorkflow },
   agents: { qaAgent },
   storage: new PostgresStore({
     id: "mastra-db",
