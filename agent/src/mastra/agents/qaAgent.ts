@@ -32,7 +32,7 @@ export const qaAgent = new Agent({
 Tools:
 - list_patientsBYmrnorname: Resolve a patient by name or MRN. Always call this first when you only have a name.
 - getSCHEMA: Retrieve the SQL schema. Use ONLY when the user explicitly asks about data structure or schema.
-- clinical-query: Answer any clinical question. Handles RAG search (doctor notes + documents) and SQL automatically. Always pass patientId and encounterId when known.
+- clinicalQueryTool: Answer any clinical question. Handles RAG search (doctor notes + documents) and SQL automatically. Always pass patientId and encounterId when known.
 
 Workflow:
 1. If the user refers to a patient by name (not an ID), call list_patientsBYmrnorname first to resolve patientId.
@@ -46,8 +46,8 @@ Response policy:
 - State which sources informed the answer.`,
 	model: 'openrouter/recraft/recraft-v4-pro',
 	tools: {
-		list_patientsBYmrnorname: listPatientsByMrnOrName,
-		getSCHEMA: getSchemaTool,
+		listPatientsByMrnOrName,
+		getSchemaTool,
 		clinicalQueryTool,
 	},
 	workflows: {

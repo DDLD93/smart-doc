@@ -3,6 +3,14 @@ import { PinoLogger } from '@mastra/loggers';
 import { PostgresStore } from '@mastra/pg';
 import { qaAgent } from './agents/qaAgent';
 import { clinicalQueryWorkflow } from './workflows/clinicalQueryWorkflow';
+import {
+  contextPrecisionScorer,
+  contextRecallScorer,
+  faithfulnessScorer,
+  answerRelevancyScorer,
+  executionAccuracyScorer,
+  exactMatchAccuracyScorer,
+} from './evals/index';
 
 const connectionString = process.env.POSTGRES_CONNECTION_STRING ?? process.env.DATABASE_URL;
 
@@ -21,4 +29,12 @@ export const mastra = new Mastra({
     name: 'Mastra',
     level: 'info',
   }),
+  scorers: {
+    contextPrecision: contextPrecisionScorer,
+    contextRecall: contextRecallScorer,
+    faithfulness: faithfulnessScorer,
+    answerRelevancy: answerRelevancyScorer,
+    sqlExecutionAccuracy: executionAccuracyScorer,
+    sqlExactMatch: exactMatchAccuracyScorer,
+  },
 });

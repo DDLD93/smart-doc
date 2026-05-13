@@ -8,7 +8,17 @@
       "Bash(Sort-Object)",
       "Bash(npx tsc *)",
       "Bash(npx mastra *)",
-      "Bash(Remove-Item src\\\\mastra\\\\tools\\\\ragTool.ts, src\\\\mastra\\\\tools\\\\textToSqlTool.ts, src\\\\mastra\\\\tools\\\\ragRetriever.ts, src\\\\mastra\\\\tools\\\\ragHttpSearchTool.ts, src\\\\mastra\\\\workflows\\\\ragWorkFlow.ts, src\\\\mastra\\\\workflows\\\\textToSqlTool.ts -Force)"
+      "Bash(Remove-Item src\\\\mastra\\\\tools\\\\ragTool.ts, src\\\\mastra\\\\tools\\\\textToSqlTool.ts, src\\\\mastra\\\\tools\\\\ragRetriever.ts, src\\\\mastra\\\\tools\\\\ragHttpSearchTool.ts, src\\\\mastra\\\\workflows\\\\ragWorkFlow.ts, src\\\\mastra\\\\workflows\\\\textToSqlTool.ts -Force)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\" -Force)",
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "WebSearch",
+      "WebFetch(domain:mastra.ai)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\" -Depth 1 -Force | Where-Object { $_.PSIsContainer -and $_.Name -ne 'node_modules' } | Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\" -Force | Where-Object { -not $_.PSIsContainer } | Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\umarj\\\\node\\\\smart-doc\\\\agent\\\\src\\\\mastra\" -Recurse | Where-Object { -not $_.PSIsContainer } | Group-Object -Property Extension | Select-Object Name, Count)",
+      "Bash(npm install *)",
+      "Bash(node *)"
     ]
   }
 }
