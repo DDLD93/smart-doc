@@ -4,6 +4,7 @@ import { Memory } from '@mastra/memory';
 import { LibSQLStore } from '@mastra/libsql';
 import { listPatientsByMrnOrName, getSchemaTool } from '../tools/agentTools';
 import { clinicalQueryTool } from '../tools/clinicalQueryTool';
+import { clinicalQueryWorkflow } from '../workflows/clinicalQueryWorkflow';
 
 const storage = new LibSQLStore({
 	id: "mastra-db",
@@ -48,6 +49,9 @@ Response policy:
 		list_patientsBYmrnorname: listPatientsByMrnOrName,
 		getSCHEMA: getSchemaTool,
 		clinicalQueryTool,
+	},
+	workflows: {
+		clinicalQueryWorkflow,
 	},
 	memory,
 });
