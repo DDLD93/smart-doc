@@ -2,6 +2,7 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { Agent } from "@mastra/core/agent";
 import { requestAgentApi } from "../tools/agentApiClient";
+import { errorMessageFromUnknown } from "../tools/toolResultUtils";
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
 
@@ -65,34 +66,46 @@ const refineSqlIntentStep = createStep({
 		const { question, sqlHint, patientId, baseUrl } = inputData;
 		const limit = inputData.limit ?? 50;
 
-		let schemaJson = "{}";
 		try {
-			const schemaPayload = await requestAgentApi<unknown>({ method: "GET", path: "/agent/sql/schema", baseUrl });
-			schemaJson = JSON.stringify(schemaPayload, null, 2);
-		} catch {
-			// proceed with empty schema — generation agent will handle gracefully
+			let schemaJson = "{}";
+			try {
+				const schemaPayload = await requestAgentApi<unknown>({ method: "GET", path: "/agent/sql/schema", baseUrl });
+				schemaJson = JSON.stringify(schemaPayload, null, 2);
+			} catch {
+				// proceed with empty schema — generation agent will handle gracefully
+			}
+
+			const prompt = `Database Schema:\n${schemaJson}\n\nOriginal clinical question: "${question}"${sqlHint ? `\nSQL hint: ${sqlHint}` : ""}${patientId ? `\nFilter context: patientId = ${patientId}` : ""}\n\nProduce a precise SQL intent description. Identify relevant tables, columns, and WHERE conditions.`;
+
+			const { text } = await sqlRefinementAgent.generate([{ role: "user", content: prompt }]);
+
+			let parsed: { refinedSqlIntent?: string; relevantTables?: string[]; schemaContext?: string };
+			try {
+				parsed = JSON.parse(text.trim());
+			} catch {
+				parsed = { refinedSqlIntent: text.trim(), relevantTables: [], schemaContext: schemaJson.slice(0, 2000) };
+			}
+
+			return {
+				question,
+				refinedSqlIntent: parsed.refinedSqlIntent ?? text.trim(),
+				relevantTables: parsed.relevantTables ?? [],
+				schemaContext: parsed.schemaContext ?? schemaJson.slice(0, 2000),
+				patientId,
+				baseUrl,
+				limit,
+			};
+		} catch (error) {
+			return {
+				question,
+				refinedSqlIntent: `SQL intent refinement failed: ${errorMessageFromUnknown(error)}`,
+				relevantTables: [],
+				schemaContext: "{}",
+				patientId,
+				baseUrl,
+				limit,
+			};
 		}
-
-		const prompt = `Database Schema:\n${schemaJson}\n\nOriginal clinical question: "${question}"${sqlHint ? `\nSQL hint: ${sqlHint}` : ""}${patientId ? `\nFilter context: patientId = ${patientId}` : ""}\n\nProduce a precise SQL intent description. Identify relevant tables, columns, and WHERE conditions.`;
-
-		const { text } = await sqlRefinementAgent.generate([{ role: "user", content: prompt }]);
-
-		let parsed: { refinedSqlIntent?: string; relevantTables?: string[]; schemaContext?: string };
-		try {
-			parsed = JSON.parse(text.trim());
-		} catch {
-			parsed = { refinedSqlIntent: text.trim(), relevantTables: [], schemaContext: schemaJson.slice(0, 2000) };
-		}
-
-		return {
-			question,
-			refinedSqlIntent: parsed.refinedSqlIntent ?? text.trim(),
-			relevantTables: parsed.relevantTables ?? [],
-			schemaContext: parsed.schemaContext ?? schemaJson.slice(0, 2000),
-			patientId,
-			baseUrl,
-			limit,
-		};
 	},
 });
 
@@ -118,28 +131,38 @@ const generateAndValidateSqlStep = createStep({
 	execute: async ({ inputData }) => {
 		const { question, refinedSqlIntent, schemaContext, baseUrl, limit } = inputData;
 
-		const genPrompt = `SQL Intent: ${refinedSqlIntent}
+		try {
+			const genPrompt = `SQL Intent: ${refinedSqlIntent}
 Schema Context:\n${schemaContext}
 Original Question: ${question}
 
 Generate a single PostgreSQL SELECT query. Output ONLY SQL.`;
 
-		const { text: rawSql } = await sqlGenerationAgent.generate([{ role: "user", content: genPrompt }]);
-		const sql = rawSql
-			.replace(/^```(?:sql)?\s*\r?\n?/im, "")
-			.replace(/\r?\n?```\s*$/im, "")
-			.trim();
+			const { text: rawSql } = await sqlGenerationAgent.generate([{ role: "user", content: genPrompt }]);
+			const sql = rawSql
+				.replace(/^```(?:sql)?\s*\r?\n?/im, "")
+				.replace(/\r?\n?```\s*$/im, "")
+				.trim();
 
-		const valPrompt = `Schema Context:\n${schemaContext}
+			const valPrompt = `Schema Context:\n${schemaContext}
 
 SQL Query:\n${sql}
 
 Validate. Return "VALID" or "INVALID: <reason>".`;
 
-		const { text: validationResult } = await sqlValidationAgent.generate([{ role: "user", content: valPrompt }]);
-		const isValid = validationResult.trim().toUpperCase().startsWith("VALID");
+			const { text: validationResult } = await sqlValidationAgent.generate([{ role: "user", content: valPrompt }]);
+			const isValid = validationResult.trim().toUpperCase().startsWith("VALID");
 
-		return { sql, validationResult: validationResult.trim(), isValid, baseUrl, limit };
+			return { sql, validationResult: validationResult.trim(), isValid, baseUrl, limit };
+		} catch (error) {
+			return {
+				sql: "",
+				validationResult: `SQL generation/validation step failed: ${errorMessageFromUnknown(error)}`,
+				isValid: false,
+				baseUrl,
+				limit,
+			};
+		}
 	},
 });
 
@@ -164,32 +187,42 @@ const executeSqlStep = createStep({
 	execute: async ({ inputData }) => {
 		const { sql, validationResult, isValid, baseUrl, limit } = inputData;
 
-		if (!isValid) {
-			return {
-				sql,
-				validationResult,
-				rows: [],
-				executionSuccess: false,
-				executionError: `SQL validation failed: ${validationResult}`,
-			};
-		}
-
 		try {
-			const data = await requestAgentApi<{ rows?: unknown[] }>({
-				method: "POST",
-				path: "/agent/sql/query",
-				body: { sql, limit },
-				baseUrl,
-			});
-			const rows = Array.isArray(data?.rows) ? data.rows : [];
-			return { sql, validationResult, rows, executionSuccess: true };
+			if (!isValid) {
+				return {
+					sql,
+					validationResult,
+					rows: [],
+					executionSuccess: false,
+					executionError: `SQL validation failed: ${validationResult}`,
+				};
+			}
+
+			try {
+				const data = await requestAgentApi<{ rows?: unknown[] }>({
+					method: "POST",
+					path: "/agent/sql/query",
+					body: { sql, limit },
+					baseUrl,
+				});
+				const rows = Array.isArray(data?.rows) ? data.rows : [];
+				return { sql, validationResult, rows, executionSuccess: true };
+			} catch (error) {
+				return {
+					sql,
+					validationResult,
+					rows: [],
+					executionSuccess: false,
+					executionError: errorMessageFromUnknown(error),
+				};
+			}
 		} catch (error) {
 			return {
-				sql,
-				validationResult,
+				sql: sql ?? "",
+				validationResult: validationResult ?? "",
 				rows: [],
 				executionSuccess: false,
-				executionError: error instanceof Error ? error.message : "Unknown SQL error",
+				executionError: errorMessageFromUnknown(error),
 			};
 		}
 	},

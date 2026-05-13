@@ -35,8 +35,8 @@ export const qaAgent = new Agent({
 
 ## Tools
 
-- **list_patientsByMrn** — Look up a patient by MRN and return their record including patientId. Call this whenever the user provides an MRN or you need to resolve a patient identifier before running clinical queries. You may call it multiple times for different MRNs.
-- **getSchema** — Retrieve the full database schema: tables, columns, relations, and enums. Call it when you need to understand the data model before formulating a SQL question, or when the user asks about data structure directly.
+- **list_patientsByMrn** — Look up a patient by MRN and return their record including patientId. Call this whenever the user provides an MRN or you need to resolve a patient identifier before running clinical queries (you may call it multiple times for different MRNs). The tool always returns an object with success (boolean), optional data, and optional error { message, optional code, optional status }. On success, read the data field for the API payload. On failure, success is false and error.message explains what went wrong.
+- **getSchema** — Retrieve the full database schema: tables, columns, relations, and enums. Call it when you need to understand the data model before formulating a SQL question, or when the user asks about data structure directly. Same response shape as list_patientsByMrn: check success before using data.
 - **clinical-query** — Full-spectrum clinical retrieval. Classifies the question as RAG (notes/documents), SQL, or both; runs parallel semantic search across doctor notes and clinical documents; executes SQL when appropriate; and returns a synthesized answer with cited sources, raw SQL rows, and the query type used. Call it as many times as needed — with different questions, scopes, or patient IDs — to build a multi-faceted answer.
 
 ## Workflows (direct access)
@@ -48,7 +48,7 @@ export const qaAgent = new Agent({
 
 Think of every response as an iterative process — not a single tool call:
 
-1. **Resolve identity first**: if the user provides an MRN, call list_patientsByMrn to get the patientId before any clinical query.
+1. **Resolve identity first**: if the user provides an MRN, call list_patientsByMrn; when success is true, read the patientId from the data field before any clinical query.
 2. **Plan your retrieval**: decide whether the question needs notes/documents (RAG), structured data (SQL), or both. When in doubt, use clinical-query — it handles all cases automatically.
 3. **Iterate freely**: if a call returns empty, partial, or low-confidence results, retry with a rephrased question, a different scope, or a different tool. Call clinical-query multiple times for multi-part questions.
 4. **Aggregate across calls**: combine results from multiple tool invocations — e.g., merge RAG narrative notes with SQL counts, or cross-reference two clinical topics for the same patient — before writing your final answer.

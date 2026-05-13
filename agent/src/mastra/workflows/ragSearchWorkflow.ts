@@ -1,6 +1,7 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { requestAgentApi } from "../tools/agentApiClient";
+import { errorMessageFromUnknown } from "../tools/toolResultUtils";
 
 const queryTypeSchema = z.enum(["RAG_DOCS", "RAG_NOTES", "SQL", "BOTH"]);
 
@@ -30,14 +31,27 @@ const acceptRagQueryStep = createStep({
 		baseUrl: z.string().optional(),
 		limit: z.number().int(),
 	}),
-	execute: async ({ inputData }) => ({
-		query: inputData.query.trim(),
-		queryType: inputData.queryType,
-		patientId: inputData.patientId,
-		encounterId: inputData.encounterId,
-		baseUrl: inputData.baseUrl,
-		limit: inputData.limit ?? 10,
-	}),
+	execute: async ({ inputData }) => {
+		try {
+			return {
+				query: inputData.query.trim(),
+				queryType: inputData.queryType,
+				patientId: inputData.patientId,
+				encounterId: inputData.encounterId,
+				baseUrl: inputData.baseUrl,
+				limit: inputData.limit ?? 10,
+			};
+		} catch (error) {
+			return {
+				query: (inputData.query ?? "").trim() || `Accept RAG query failed: ${errorMessageFromUnknown(error)}`,
+				queryType: inputData.queryType ?? "BOTH",
+				patientId: inputData.patientId,
+				encounterId: inputData.encounterId,
+				baseUrl: inputData.baseUrl,
+				limit: inputData.limit ?? 10,
+			};
+		}
+	},
 });
 
 // ─── Step 2a: rag-search-notes (parallel branch) ─────────────────────────────
@@ -54,25 +68,29 @@ const searchNotesStep = createStep({
 	}),
 	outputSchema: ragResultSchema,
 	execute: async ({ inputData }) => {
-		const { query, queryType, patientId, encounterId, baseUrl, limit } = inputData;
-
-		if (queryType === "RAG_DOCS") return { results: [], sources: [], total: 0 };
-
 		try {
-			const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
-				method: "POST",
-				path: "/agent/rag/search-doctor-notes",
-				body: { query, patientId, encounterId, limit },
-				baseUrl,
-			});
-			const results = Array.isArray(data?.results) ? data.results : [];
-			const sources = results
-				.map((r: unknown) => {
-					const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-					return (p?.noteId ?? p?.id ?? null) as string | null;
-				})
-				.filter((s): s is string => s !== null);
-			return { results, sources, total: data?.total ?? results.length };
+			const { query, queryType, patientId, encounterId, baseUrl, limit } = inputData;
+
+			if (queryType === "RAG_DOCS") return { results: [], sources: [], total: 0 };
+
+			try {
+				const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
+					method: "POST",
+					path: "/agent/rag/search-doctor-notes",
+					body: { query, patientId, encounterId, limit },
+					baseUrl,
+				});
+				const results = Array.isArray(data?.results) ? data.results : [];
+				const sources = results
+					.map((r: unknown) => {
+						const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+						return (p?.noteId ?? p?.id ?? null) as string | null;
+					})
+					.filter((s): s is string => s !== null);
+				return { results, sources, total: data?.total ?? results.length };
+			} catch {
+				return { results: [], sources: [], total: 0 };
+			}
 		} catch {
 			return { results: [], sources: [], total: 0 };
 		}
@@ -92,25 +110,29 @@ const searchDocumentsStep = createStep({
 	}),
 	outputSchema: ragResultSchema,
 	execute: async ({ inputData }) => {
-		const { query, queryType, patientId, baseUrl, limit } = inputData;
-
-		if (queryType === "RAG_NOTES") return { results: [], sources: [], total: 0 };
-
 		try {
-			const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
-				method: "POST",
-				path: "/agent/rag/search-documents",
-				body: { query, patientId, limit },
-				baseUrl,
-			});
-			const results = Array.isArray(data?.results) ? data.results : [];
-			const sources = results
-				.map((r: unknown) => {
-					const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-					return (p?.filename ?? p?.originalName ?? p?.fileId ?? null) as string | null;
-				})
-				.filter((s): s is string => s !== null);
-			return { results, sources, total: data?.total ?? results.length };
+			const { query, queryType, patientId, baseUrl, limit } = inputData;
+
+			if (queryType === "RAG_NOTES") return { results: [], sources: [], total: 0 };
+
+			try {
+				const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
+					method: "POST",
+					path: "/agent/rag/search-documents",
+					body: { query, patientId, limit },
+					baseUrl,
+				});
+				const results = Array.isArray(data?.results) ? data.results : [];
+				const sources = results
+					.map((r: unknown) => {
+						const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+						return (p?.filename ?? p?.originalName ?? p?.fileId ?? null) as string | null;
+					})
+					.filter((s): s is string => s !== null);
+				return { results, sources, total: data?.total ?? results.length };
+			} catch {
+				return { results: [], sources: [], total: 0 };
+			}
 		} catch {
 			return { results: [], sources: [], total: 0 };
 		}
@@ -134,16 +156,27 @@ const mergeRagResultsStep = createStep({
 		totalDocs: z.number(),
 	}),
 	execute: async ({ inputData }) => {
-		const notes = inputData["rag-search-notes"];
-		const docs = inputData["rag-search-documents"];
-		return {
-			doctorNotesResults: notes.results,
-			doctorNotesSources: notes.sources,
-			documentsResults: docs.results,
-			documentsSources: docs.sources,
-			totalNotes: notes.total,
-			totalDocs: docs.total,
-		};
+		try {
+			const notes = inputData["rag-search-notes"];
+			const docs = inputData["rag-search-documents"];
+			return {
+				doctorNotesResults: notes.results,
+				doctorNotesSources: notes.sources,
+				documentsResults: docs.results,
+				documentsSources: docs.sources,
+				totalNotes: notes.total,
+				totalDocs: docs.total,
+			};
+		} catch {
+			return {
+				doctorNotesResults: [],
+				doctorNotesSources: [],
+				documentsResults: [],
+				documentsSources: [],
+				totalNotes: 0,
+				totalDocs: 0,
+			};
+		}
 	},
 });
 

@@ -1,6 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { clinicalQueryWorkflow } from "../workflows/clinicalQueryWorkflow";
+import { errorMessageFromUnknown } from "./toolResultUtils";
 
 export const clinicalQueryTool = createTool({
 	id: "clinical-query",
@@ -24,23 +25,35 @@ export const clinicalQueryTool = createTool({
 		queryType: z.string(),
 	}),
 	execute: async (inputData) => {
-		const run = await clinicalQueryWorkflow.createRun();
-		const result = await run.start({ inputData });
+		try {
+			const run = await clinicalQueryWorkflow.createRun();
+			const result = await run.start({ inputData });
 
-		if (result.status === "success") return result.result;
+			if (result.status === "success") return result.result;
 
-		const errorMessage =
-			result.status === "failed" && "error" in result
-				? (result as { error: Error }).error.message
-				: `Workflow ended with status: ${result.status}`;
+			const errorMessage =
+				result.status === "failed" && "error" in result
+					? errorMessageFromUnknown((result as { error: unknown }).error)
+					: `Workflow ended with status: ${result.status}`;
 
-		return {
-			synthesizedResponse: `Clinical query workflow failed: ${errorMessage}`,
-			sources: [],
-			searchSuccess: false,
-			sql: undefined,
-			rows: [],
-			queryType: "UNKNOWN",
-		};
+			return {
+				synthesizedResponse: `Clinical query workflow failed: ${errorMessage}`,
+				sources: [],
+				searchSuccess: false,
+				sql: undefined,
+				rows: [],
+				queryType: "UNKNOWN",
+			};
+		} catch (error) {
+			const message = errorMessageFromUnknown(error);
+			return {
+				synthesizedResponse: `Failed to execute clinical query workflow: ${message}`,
+				sources: [],
+				searchSuccess: false,
+				sql: undefined,
+				rows: [],
+				queryType: "UNKNOWN",
+			};
+		}
 	},
 });

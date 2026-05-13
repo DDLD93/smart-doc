@@ -2,6 +2,7 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { Agent } from "@mastra/core/agent";
 import { requestAgentApi } from "../tools/agentApiClient";
+import { errorMessageFromUnknown } from "../tools/toolResultUtils";
 
 const queryTypeSchema = z.enum(["RAG_DOCS", "RAG_NOTES", "SQL", "BOTH"]);
 type QueryType = z.infer<typeof queryTypeSchema>;
@@ -118,13 +119,25 @@ const acceptQueryStep = createStep({
 		...metaFields,
 		limit: z.number().int(),
 	}),
-	execute: async ({ inputData }) => ({
-		question: inputData.question.trim(),
-		patientId: inputData.patientId,
-		encounterId: inputData.encounterId,
-		baseUrl: inputData.baseUrl,
-		limit: inputData.limit ?? 10,
-	}),
+	execute: async ({ inputData }) => {
+		try {
+			return {
+				question: inputData.question.trim(),
+				patientId: inputData.patientId,
+				encounterId: inputData.encounterId,
+				baseUrl: inputData.baseUrl,
+				limit: inputData.limit ?? 10,
+			};
+		} catch (error) {
+			return {
+				question: (inputData.question ?? "").trim() || `Accept query failed: ${errorMessageFromUnknown(error)}`,
+				patientId: inputData.patientId,
+				encounterId: inputData.encounterId,
+				baseUrl: inputData.baseUrl,
+				limit: inputData.limit ?? 10,
+			};
+		}
+	},
 });
 
 // ─── Step 2: classify-and-refine-query ───────────────────────────────────────
@@ -146,31 +159,43 @@ const classifyAndRefineQueryStep = createStep({
 	}),
 	execute: async ({ inputData }) => {
 		const { question, patientId, encounterId, baseUrl, limit } = inputData;
-
-		const prompt = `Classify and refine this clinical question for a patient record system.
+		try {
+			const prompt = `Classify and refine this clinical question for a patient record system.
 Question: "${question}"${patientId ? `\nPatient context: patientId=${patientId}` : ""}${encounterId ? `\nEncounter context: encounterId=${encounterId}` : ""}`;
 
-		const { text } = await queryClassifierAgent.generate([{ role: "user", content: prompt }]);
+			const { text } = await queryClassifierAgent.generate([{ role: "user", content: prompt }]);
 
-		let parsed: { queryType?: string; refinedQuery?: string; sqlHint?: string | null };
-		try {
-			parsed = JSON.parse(text.trim());
+			let parsed: { queryType?: string; refinedQuery?: string; sqlHint?: string | null };
+			try {
+				parsed = JSON.parse(text.trim());
+			} catch {
+				parsed = { queryType: "BOTH", refinedQuery: question, sqlHint: null };
+			}
+
+			const parsedType = queryTypeSchema.safeParse(parsed.queryType);
+
+			return {
+				originalQuestion: question,
+				refinedQuery: parsed.refinedQuery ?? question,
+				queryType: (parsedType.success ? parsedType.data : "BOTH") as QueryType,
+				sqlHint: parsed.sqlHint ?? null,
+				patientId,
+				encounterId,
+				baseUrl,
+				limit,
+			};
 		} catch {
-			parsed = { queryType: "BOTH", refinedQuery: question, sqlHint: null };
+			return {
+				originalQuestion: question,
+				refinedQuery: question,
+				queryType: "BOTH" as QueryType,
+				sqlHint: null,
+				patientId,
+				encounterId,
+				baseUrl,
+				limit,
+			};
 		}
-
-		const parsedType = queryTypeSchema.safeParse(parsed.queryType);
-
-		return {
-			originalQuestion: question,
-			refinedQuery: parsed.refinedQuery ?? question,
-			queryType: (parsedType.success ? parsedType.data : "BOTH") as QueryType,
-			sqlHint: parsed.sqlHint ?? null,
-			patientId,
-			encounterId,
-			baseUrl,
-			limit,
-		};
 	},
 });
 
@@ -200,37 +225,47 @@ const refineSqlStatementStep = createStep({
 	execute: async ({ inputData }) => {
 		const { originalQuestion, refinedQuery, queryType, sqlHint, patientId, encounterId, baseUrl, limit } = inputData;
 
-		const passthrough = { originalQuestion, refinedQuery, queryType, sqlHint, patientId, encounterId, baseUrl, limit };
-
-		if (queryType === "RAG_DOCS" || queryType === "RAG_NOTES") {
-			return { ...passthrough, refinedSqlIntent: undefined, relevantTables: undefined, schemaContext: undefined };
-		}
-
-		let schemaJson = "{}";
 		try {
-			const schemaPayload = await requestAgentApi<unknown>({ method: "GET", path: "/agent/sql/schema", baseUrl });
-			schemaJson = JSON.stringify(schemaPayload, null, 2);
-		} catch {
-			// proceed with empty schema — generation agent will handle gracefully
+			const passthrough = { originalQuestion, refinedQuery, queryType, sqlHint, patientId, encounterId, baseUrl, limit };
+
+			if (queryType === "RAG_DOCS" || queryType === "RAG_NOTES") {
+				return { ...passthrough, refinedSqlIntent: undefined, relevantTables: undefined, schemaContext: undefined };
+			}
+
+			let schemaJson = "{}";
+			try {
+				const schemaPayload = await requestAgentApi<unknown>({ method: "GET", path: "/agent/sql/schema", baseUrl });
+				schemaJson = JSON.stringify(schemaPayload, null, 2);
+			} catch {
+				// proceed with empty schema — generation agent will handle gracefully
+			}
+
+			const prompt = `Database Schema:\n${schemaJson}\n\nOriginal clinical question: "${originalQuestion}"${sqlHint ? `\nSQL hint: ${sqlHint}` : ""}${patientId ? `\nFilter context: patientId = ${patientId}` : ""}\n\nProduce a precise SQL intent description. Identify relevant tables, columns, and WHERE conditions.`;
+
+			const { text } = await sqlStatementRefinementAgent.generate([{ role: "user", content: prompt }]);
+
+			let parsed: { refinedSqlIntent?: string; relevantTables?: string[]; schemaContext?: string };
+			try {
+				parsed = JSON.parse(text.trim());
+			} catch {
+				parsed = { refinedSqlIntent: text.trim(), relevantTables: [], schemaContext: schemaJson.slice(0, 2000) };
+			}
+
+			return {
+				...passthrough,
+				refinedSqlIntent: parsed.refinedSqlIntent ?? text.trim(),
+				relevantTables: parsed.relevantTables ?? [],
+				schemaContext: parsed.schemaContext ?? schemaJson.slice(0, 2000),
+			};
+		} catch (error) {
+			const passthrough = { originalQuestion, refinedQuery, queryType, sqlHint, patientId, encounterId, baseUrl, limit };
+			return {
+				...passthrough,
+				refinedSqlIntent: `SQL intent refinement failed: ${errorMessageFromUnknown(error)}`,
+				relevantTables: [],
+				schemaContext: "{}",
+			};
 		}
-
-		const prompt = `Database Schema:\n${schemaJson}\n\nOriginal clinical question: "${originalQuestion}"${sqlHint ? `\nSQL hint: ${sqlHint}` : ""}${patientId ? `\nFilter context: patientId = ${patientId}` : ""}\n\nProduce a precise SQL intent description. Identify relevant tables, columns, and WHERE conditions.`;
-
-		const { text } = await sqlStatementRefinementAgent.generate([{ role: "user", content: prompt }]);
-
-		let parsed: { refinedSqlIntent?: string; relevantTables?: string[]; schemaContext?: string };
-		try {
-			parsed = JSON.parse(text.trim());
-		} catch {
-			parsed = { refinedSqlIntent: text.trim(), relevantTables: [], schemaContext: schemaJson.slice(0, 2000) };
-		}
-
-		return {
-			...passthrough,
-			refinedSqlIntent: parsed.refinedSqlIntent ?? text.trim(),
-			relevantTables: parsed.relevantTables ?? [],
-			schemaContext: parsed.schemaContext ?? schemaJson.slice(0, 2000),
-		};
 	},
 });
 
@@ -241,25 +276,29 @@ const searchDoctorNotesStep = createStep({
 	inputSchema: parallelStepInputSchema,
 	outputSchema: ragOutputSchema,
 	execute: async ({ inputData }) => {
-		const { refinedQuery, queryType, patientId, encounterId, baseUrl, limit } = inputData;
-
-		if (queryType === "RAG_DOCS") return { results: [], sources: [], total: 0 };
-
 		try {
-			const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
-				method: "POST",
-				path: "/agent/rag/search-doctor-notes",
-				body: { query: refinedQuery, patientId, encounterId, limit },
-				baseUrl,
-			});
-			const results = Array.isArray(data?.results) ? data.results : [];
-			const sources = results
-				.map((r: unknown) => {
-					const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-					return (p?.noteId ?? p?.id ?? null) as string | null;
-				})
-				.filter((s): s is string => s !== null);
-			return { results, sources, total: data?.total ?? results.length };
+			const { refinedQuery, queryType, patientId, encounterId, baseUrl, limit } = inputData;
+
+			if (queryType === "RAG_DOCS") return { results: [], sources: [], total: 0 };
+
+			try {
+				const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
+					method: "POST",
+					path: "/agent/rag/search-doctor-notes",
+					body: { query: refinedQuery, patientId, encounterId, limit },
+					baseUrl,
+				});
+				const results = Array.isArray(data?.results) ? data.results : [];
+				const sources = results
+					.map((r: unknown) => {
+						const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+						return (p?.noteId ?? p?.id ?? null) as string | null;
+					})
+					.filter((s): s is string => s !== null);
+				return { results, sources, total: data?.total ?? results.length };
+			} catch {
+				return { results: [], sources: [], total: 0 };
+			}
 		} catch {
 			return { results: [], sources: [], total: 0 };
 		}
@@ -273,25 +312,29 @@ const searchDocumentsStep = createStep({
 	inputSchema: parallelStepInputSchema,
 	outputSchema: ragOutputSchema,
 	execute: async ({ inputData }) => {
-		const { refinedQuery, queryType, patientId, baseUrl, limit } = inputData;
-
-		if (queryType === "RAG_NOTES") return { results: [], sources: [], total: 0 };
-
 		try {
-			const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
-				method: "POST",
-				path: "/agent/rag/search-documents",
-				body: { query: refinedQuery, patientId, limit },
-				baseUrl,
-			});
-			const results = Array.isArray(data?.results) ? data.results : [];
-			const sources = results
-				.map((r: unknown) => {
-					const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-					return (p?.filename ?? p?.originalName ?? p?.fileId ?? null) as string | null;
-				})
-				.filter((s): s is string => s !== null);
-			return { results, sources, total: data?.total ?? results.length };
+			const { refinedQuery, queryType, patientId, baseUrl, limit } = inputData;
+
+			if (queryType === "RAG_NOTES") return { results: [], sources: [], total: 0 };
+
+			try {
+				const data = await requestAgentApi<{ results?: unknown[]; total?: number }>({
+					method: "POST",
+					path: "/agent/rag/search-documents",
+					body: { query: refinedQuery, patientId, limit },
+					baseUrl,
+				});
+				const results = Array.isArray(data?.results) ? data.results : [];
+				const sources = results
+					.map((r: unknown) => {
+						const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+						return (p?.filename ?? p?.originalName ?? p?.fileId ?? null) as string | null;
+					})
+					.filter((s): s is string => s !== null);
+				return { results, sources, total: data?.total ?? results.length };
+			} catch {
+				return { results: [], sources: [], total: 0 };
+			}
 		} catch {
 			return { results: [], sources: [], total: 0 };
 		}
@@ -318,69 +361,83 @@ const generateValidateExecuteSqlStep = createStep({
 		documentsSources: z.array(z.string()),
 	}),
 	execute: async ({ inputData, getStepResult }) => {
-		const parallelNotes = inputData["search-doctor-notes"];
-		const parallelDocs = inputData["search-documents"];
-
-		const passthrough = {
-			doctorNotesResults: parallelNotes.results,
-			documentsResults: parallelDocs.results,
-			doctorNotesSources: parallelNotes.sources,
-			documentsSources: parallelDocs.sources,
-		};
-
-		const step3 = getStepResult(refineSqlStatementStep);
-
-		if (step3.queryType === "RAG_DOCS" || step3.queryType === "RAG_NOTES") {
-			return { ...passthrough, rows: [], executionSuccess: false };
-		}
-
 		try {
-			const genPrompt = `SQL Intent: ${step3.refinedSqlIntent ?? step3.originalQuestion}
+			const parallelNotes = inputData["search-doctor-notes"];
+			const parallelDocs = inputData["search-documents"];
+
+			const passthrough = {
+				doctorNotesResults: parallelNotes.results,
+				documentsResults: parallelDocs.results,
+				doctorNotesSources: parallelNotes.sources,
+				documentsSources: parallelDocs.sources,
+			};
+
+			const step3 = getStepResult(refineSqlStatementStep);
+
+			if (step3.queryType === "RAG_DOCS" || step3.queryType === "RAG_NOTES") {
+				return { ...passthrough, rows: [], executionSuccess: false };
+			}
+
+			try {
+				const genPrompt = `SQL Intent: ${step3.refinedSqlIntent ?? step3.originalQuestion}
 Schema Context:\n${step3.schemaContext ?? ""}
 Original Question: ${step3.originalQuestion}
 
 Generate a single PostgreSQL SELECT query. Output ONLY SQL.`;
 
-			const { text: rawSql } = await sqlGenerationAgent.generate([{ role: "user", content: genPrompt }]);
-			const generatedSql = rawSql
-				.replace(/^```(?:sql)?\s*\r?\n?/im, "")
-				.replace(/\r?\n?```\s*$/im, "")
-				.trim();
+				const { text: rawSql } = await sqlGenerationAgent.generate([{ role: "user", content: genPrompt }]);
+				const generatedSql = rawSql
+					.replace(/^```(?:sql)?\s*\r?\n?/im, "")
+					.replace(/\r?\n?```\s*$/im, "")
+					.trim();
 
-			const valPrompt = `Schema Context:\n${step3.schemaContext ?? ""}
+				const valPrompt = `Schema Context:\n${step3.schemaContext ?? ""}
 
 SQL Query:\n${generatedSql}
 
 Validate. Return "VALID" or "INVALID: <reason>".`;
-			const { text: validationResult } = await sqlValidationAgent.generate([{ role: "user", content: valPrompt }]);
-			const isValid = validationResult.trim().toUpperCase().startsWith("VALID");
+				const { text: validationResult } = await sqlValidationAgent.generate([{ role: "user", content: valPrompt }]);
+				const isValid = validationResult.trim().toUpperCase().startsWith("VALID");
 
-			if (!isValid) {
+				if (!isValid) {
+					return {
+						...passthrough,
+						sql: generatedSql,
+						validationResult: validationResult.trim(),
+						rows: [],
+						executionSuccess: false,
+						executionError: `SQL validation failed: ${validationResult.trim()}`,
+					};
+				}
+
+				const data = await requestAgentApi<{ rows?: unknown[] }>({
+					method: "POST",
+					path: "/agent/sql/query",
+					body: { sql: generatedSql, limit: step3.limit ?? 50 },
+					baseUrl: step3.baseUrl,
+				});
+				const rows = Array.isArray(data?.rows) ? data.rows : [];
+
+				return { ...passthrough, sql: generatedSql, validationResult: validationResult.trim(), rows, executionSuccess: true };
+			} catch (error) {
 				return {
 					...passthrough,
-					sql: generatedSql,
-					validationResult: validationResult.trim(),
 					rows: [],
 					executionSuccess: false,
-					executionError: `SQL validation failed: ${validationResult.trim()}`,
+					executionError: errorMessageFromUnknown(error),
 				};
 			}
-
-			const data = await requestAgentApi<{ rows?: unknown[] }>({
-				method: "POST",
-				path: "/agent/sql/query",
-				body: { sql: generatedSql, limit: step3.limit ?? 50 },
-				baseUrl: step3.baseUrl,
-			});
-			const rows = Array.isArray(data?.rows) ? data.rows : [];
-
-			return { ...passthrough, sql: generatedSql, validationResult: validationResult.trim(), rows, executionSuccess: true };
 		} catch (error) {
+			const notes = inputData["search-doctor-notes"];
+			const docs = inputData["search-documents"];
 			return {
-				...passthrough,
+				doctorNotesResults: notes?.results ?? [],
+				documentsResults: docs?.results ?? [],
+				doctorNotesSources: notes?.sources ?? [],
+				documentsSources: docs?.sources ?? [],
 				rows: [],
 				executionSuccess: false,
-				executionError: error instanceof Error ? error.message : "Unknown SQL error",
+				executionError: errorMessageFromUnknown(error),
 			};
 		}
 	},
@@ -410,35 +467,38 @@ const synthesizeAllResultsStep = createStep({
 		queryType: z.string(),
 	}),
 	execute: async ({ inputData, getStepResult }) => {
-		const { rows, executionSuccess, sql, doctorNotesResults, documentsResults, doctorNotesSources, documentsSources } = inputData;
+		const { rows, executionSuccess, sql, doctorNotesResults, documentsResults, doctorNotesSources, documentsSources } =
+			inputData;
 
-		const step2 = getStepResult(classifyAndRefineQueryStep);
+		try {
+			const step2 = getStepResult(classifyAndRefineQueryStep);
 
-		const allSources = [...doctorNotesSources, ...documentsSources];
-		const hasContent = doctorNotesResults.length > 0 || documentsResults.length > 0 || (executionSuccess && rows.length > 0);
+			const allSources = [...doctorNotesSources, ...documentsSources];
+			const hasContent =
+				doctorNotesResults.length > 0 || documentsResults.length > 0 || (executionSuccess && rows.length > 0);
 
-		if (!hasContent) {
-			return {
-				synthesizedResponse: "No relevant clinical information was found for this query.",
-				sources: [],
-				searchSuccess: false,
-				sql,
-				rows,
-				queryType: step2.queryType,
-			};
-		}
+			if (!hasContent) {
+				return {
+					synthesizedResponse: "No relevant clinical information was found for this query.",
+					sources: [],
+					searchSuccess: false,
+					sql,
+					rows,
+					queryType: step2.queryType,
+				};
+			}
 
-		const formatResults = (items: unknown[]) =>
-			items
-				.slice(0, 10)
-				.map((r) => {
-					const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-					const text = p?.text ?? p?.noteText ?? (r as Record<string, unknown>)?.chunk;
-					return typeof text === "string" ? text.slice(0, 500) : JSON.stringify(r).slice(0, 500);
-				})
-				.join("\n---\n");
+			const formatResults = (items: unknown[]) =>
+				items
+					.slice(0, 10)
+					.map((r) => {
+						const p = (r as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+						const text = p?.text ?? p?.noteText ?? (r as Record<string, unknown>)?.chunk;
+						return typeof text === "string" ? text.slice(0, 500) : JSON.stringify(r).slice(0, 500);
+					})
+					.join("\n---\n");
 
-		const prompt = `Clinical Question: "${step2.originalQuestion}"
+			const prompt = `Clinical Question: "${step2.originalQuestion}"
 
 Doctor Notes (${doctorNotesResults.length} results):
 ${doctorNotesResults.length > 0 ? formatResults(doctorNotesResults) : "(none)"}
@@ -449,16 +509,33 @@ ${executionSuccess && rows.length > 0 ? `\nStructured Database Results (${rows.l
 
 Synthesize a comprehensive clinical answer. Cite sources. If SQL data conflicts with notes, prefer the most recent; flag the discrepancy. Never fabricate facts.`;
 
-		const { text } = await clinicalSynthesisAgent.generate([{ role: "user", content: prompt }]);
+			const { text } = await clinicalSynthesisAgent.generate([{ role: "user", content: prompt }]);
 
-		return {
-			synthesizedResponse: text.trim(),
-			sources: allSources,
-			searchSuccess: true,
-			sql,
-			rows,
-			queryType: step2.queryType,
-		};
+			return {
+				synthesizedResponse: text.trim(),
+				sources: allSources,
+				searchSuccess: true,
+				sql,
+				rows,
+				queryType: step2.queryType,
+			};
+		} catch (error) {
+			let queryType = "UNKNOWN";
+			try {
+				queryType = getStepResult(classifyAndRefineQueryStep).queryType;
+			} catch {
+				// keep UNKNOWN
+			}
+			const fallbackSources = [...doctorNotesSources, ...documentsSources];
+			return {
+				synthesizedResponse: `Result synthesis failed: ${errorMessageFromUnknown(error)}`,
+				sources: fallbackSources,
+				searchSuccess: false,
+				sql,
+				rows,
+				queryType,
+			};
+		}
 	},
 });
 
