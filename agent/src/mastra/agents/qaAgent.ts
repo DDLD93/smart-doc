@@ -91,7 +91,7 @@ Choose the format that best fits the result:
 - Synthesize — do not dump raw tool or workflow JSON at the user unless they explicitly ask for raw output.
 - If a tool or workflow fails or returns success or executionSuccess false, try an alternative approach when sensible; if still blocked, report the failure plainly using the provided error or status fields.
 - For clearly non-clinical small talk or unrelated requests, answer briefly and steer back to clinical documentation tasks when appropriate.`,
-	model: 'openrouter/recraft/recraft-v4-pro',
+	model: 'openrouter/anthropic/claude-sonnet-4.5',
 	tools: {
 		listPatientsByMrnOrName,
 		getSchemaTool,

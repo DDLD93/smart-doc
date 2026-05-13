@@ -10,36 +10,53 @@ const sqlRefinementAgent = new Agent({
 	id: "sql-pipeline-refinement-agent",
 	name: "sql-pipeline-refinement-agent",
 	description: "Refines SQL intent given the database schema",
-	instructions: `You are a clinical SQL intent analyst.
-Given a database schema, the original clinical question, and an optional SQL hint, produce a precise SQL intent description.
-Identify: the relevant tables, the exact columns needed, the WHERE conditions, JOIN relationships, and any aggregations.
-Do NOT write the full SQL query — describe intent only.
+	instructions: `Convert a clinical question into a precise SQL intent using only the provided schema.
 
-Respond with JSON only, no markdown fences:
-{"refinedSqlIntent": "<precise intent description>", "relevantTables": ["<table1>", ...], "schemaContext": "<minimal relevant schema excerpt as string>"}`,
-	model: "google/gemini-2.5-flash",
+Identify the relevant tables, columns, joins, filters, ordering, grouping, and aggregations.
+Preserve patientId constraints when present.
+Do not invent tables or columns. Do not write SQL.
+Keep schemaContext to the minimum schema excerpt needed for SQL generation.
+
+Output JSON only:
+{"refinedSqlIntent":"...","relevantTables":["..."],"schemaContext":"..."}`,
+	model: "openrouter/google/gemini-2.5-flash",
 });
 
 const sqlGenerationAgent = new Agent({
 	id: "sql-pipeline-generation-agent",
 	name: "sql-pipeline-generation-agent",
 	description: "Generates a PostgreSQL query from a refined SQL intent",
-	instructions: `You translate clinical SQL intent descriptions into a single valid PostgreSQL SELECT statement.
-Output ONLY the SQL. No markdown fences, no explanations.
-Use only SELECT or WITH...SELECT. Never DROP/DELETE/UPDATE/INSERT.
-Limit result sets to reasonable sizes using LIMIT.`,
-	model: "google/gemini-2.5-flash",
+	instructions: `Generate one safe PostgreSQL read query from the SQL intent and schema context.
+
+Rules:
+- Output SQL only. No markdown, prose, or comments.
+- Use only SELECT or WITH ... SELECT.
+- Use only tables and columns present in schemaContext.
+- Include patientId and other filters described in the intent.
+- Qualify ambiguous columns with table aliases.
+- Add a LIMIT when the query can return multiple rows.
+- Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, or EXECUTE.`,
+	model: "openrouter/qwen/qwen3-coder-next",
 });
 
 const sqlValidationAgent = new Agent({
 	id: "sql-pipeline-validation-agent",
 	name: "sql-pipeline-validation-agent",
 	description: "Validates SQL queries for correctness and safety",
-	instructions: `Review the SQL query for PostgreSQL syntax correctness, safety, and logic.
-Return "VALID" if safe to execute.
-Return "INVALID: <specific reason>" if not.
-Flag: destructive operations, syntax errors, unqualified table references, unbounded queries.`,
-	model: "google/gemini-2.5-flash",
+	instructions: `Validate a PostgreSQL query before execution.
+
+Return exactly one line:
+- VALID
+- INVALID: <specific reason>
+
+Reject any query that:
+- is not a single SELECT or WITH ... SELECT statement
+- references tables or columns not shown in the schema context
+- performs writes, DDL, permissions changes, procedure calls, or dynamic execution
+- lacks required patientId filters from the intent
+- has obvious PostgreSQL syntax errors
+- can return many rows without a LIMIT`,
+	model: "openrouter/deepseek/deepseek-r1",
 });
 
 // ─── Step 1: sql-refine-intent ────────────────────────────────────────────────
@@ -144,7 +161,8 @@ Generate a single PostgreSQL SELECT query. Output ONLY SQL.`;
 				.replace(/\r?\n?```\s*$/im, "")
 				.trim();
 
-			const valPrompt = `Schema Context:\n${schemaContext}
+			const valPrompt = `SQL Intent: ${refinedSqlIntent}
+Schema Context:\n${schemaContext}
 
 SQL Query:\n${sql}
 
