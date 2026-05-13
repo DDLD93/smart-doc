@@ -2,9 +2,10 @@ import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { PostgresStore } from '@mastra/pg';
 import { qaAgent } from './agents/qaAgent';
-import { clinicalQueryWorkflow } from './workflows/clinicalQueryWorkflow';
-import { ragSearchWorkflow } from './workflows/ragSearchWorkflow';
-import { sqlPipelineWorkflow } from './workflows/sqlPipelineWorkflow';
+// Workflows disabled — qa-agent now orchestrates tools directly.
+// import { clinicalQueryWorkflow } from './workflows/clinicalQueryWorkflow';
+// import { ragSearchWorkflow } from './workflows/ragSearchWorkflow';
+// import { sqlPipelineWorkflow } from './workflows/sqlPipelineWorkflow';
 import {
   contextPrecisionScorer,
   contextRecallScorer,
@@ -21,7 +22,7 @@ if (!connectionString) {
 }
 
 export const mastra = new Mastra({
-  workflows: { clinicalQueryWorkflow, ragSearchWorkflow, sqlPipelineWorkflow },
+  // workflows: { clinicalQueryWorkflow, ragSearchWorkflow, sqlPipelineWorkflow },
   agents: { qaAgent },
   storage: new PostgresStore({
     id: "mastra-db",
