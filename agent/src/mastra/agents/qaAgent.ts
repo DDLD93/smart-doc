@@ -5,6 +5,7 @@ import { LibSQLStore } from '@mastra/libsql';
 import { listPatientsByMrnOrName, getSchemaTool } from '../tools/agentTools';
 import { clinicalQueryTool } from '../tools/clinicalQueryTool';
 import { clinicalQueryWorkflow } from '../workflows/clinicalQueryWorkflow';
+import { answerRelevancyScorer, contextPrecisionScorer, contextRecallScorer, faithfulnessScorer } from '../evals/ragEvals';
 
 const storage = new LibSQLStore({
 	id: "mastra-db",
@@ -54,4 +55,10 @@ Response policy:
 		clinicalQueryWorkflow,
 	},
 	memory,
+	scorers: {
+		contextPrecision: { scorer: contextPrecisionScorer },
+		contextRecall: { scorer: contextRecallScorer },
+		faithfulness: { scorer: faithfulnessScorer },
+		answerRelevancy: { scorer: answerRelevancyScorer },
+	},
 });
