@@ -89,7 +89,7 @@ Choose the format that best fits the result:
 - Synthesize — do not dump raw tool JSON unless the user explicitly asks for raw output.
 - If a tool returns \`success: false\`, try an alternative approach when sensible; if still blocked, report the failure plainly using the provided error fields.
 - For clearly non-clinical small talk or unrelated requests, answer briefly and steer back to clinical documentation tasks when appropriate.`,
-	model: 'openrouter/anthropic/claude-sonnet-4.5',
+	model: 'openrouter/minimax/minimax-m3',
 	tools: {
 		listPatientsByMrnOrName,
 		getSchemaTool,
@@ -100,7 +100,7 @@ Choose the format that best fits the result:
 	// workflows: { clinicalQueryWorkflow, ragSearchWorkflow, sqlPipelineWorkflow },
 	memory,
 	scorers: {
-		contextPrecision: { scorer: contextPrecisionScorer },
+		contextPrecision: { scorer: contextPrecisionScorer},
 		contextRecall: { scorer: contextRecallScorer },
 		faithfulness: { scorer: faithfulnessScorer },
 		answerRelevancy: { scorer: answerRelevancyScorer },

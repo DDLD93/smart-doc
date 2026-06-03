@@ -1,0 +1,672 @@
+{
+  "runAt": "2026-06-03T23:24:20.055Z",
+  "rag": {
+    "items": 3,
+    "scores": {
+      "context-precision": 1,
+      "context-recall": 1,
+      "faithfulness": 0.6666666666666666,
+      "answer-relevancy-scorer": 0.20666666666666667
+    },
+    "perItem": [
+      {
+        "input": {
+          "query": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?"
+        },
+        "scorerResults": {
+          "context-precision": {
+            "input": {
+              "query": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?"
+            },
+            "output": {
+              "text": "I wasn't able to find that student in the system.\n\n- **MRN lookup** for `CS/2024/001` → not found.\n- **Name lookup** for `John Doe` → not found.\n\nThis clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies. A few possible reasons:\n\n- The MRN format `CS/2024/001` looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.\n- The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.\n- The record could be filed under a different spelling or a more specific MRN.\n\nCould you confirm or provide:\n1. The correct **MRN** as it appears in the clinical system, or\n2. The student's **full legal name** and **date of birth** so I can re-run the lookup?\n\nIf the document is only available as a scanned file, I can also try a semantic search across indexed clinical documents — let me know.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "16352677-1756-4130-a1b8-b37be9b6a093",
+            "score": 1,
+            "reason": "1/1 context chunks are relevant — MAP precision score: 1",
+            "analyzeStepResult": {
+              "verdicts": [
+                {
+                  "index": 0,
+                  "relevant": true,
+                  "reason": "This chunk contains all the requested information (blood group and allergies) for the specified student."
+                }
+              ]
+            },
+            "analyzePrompt": "Query: Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?\n\nRetrieved Context Chunks:\n[0] regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each chunk, judge whether it is relevant and useful to answer the query."
+          },
+          "context-recall": {
+            "input": {
+              "query": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?"
+            },
+            "output": {
+              "text": "I wasn't able to find that student in the system.\n\n- **MRN lookup** for `CS/2024/001` → not found.\n- **Name lookup** for `John Doe` → not found.\n\nThis clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies. A few possible reasons:\n\n- The MRN format `CS/2024/001` looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.\n- The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.\n- The record could be filed under a different spelling or a more specific MRN.\n\nCould you confirm or provide:\n1. The correct **MRN** as it appears in the clinical system, or\n2. The student's **full legal name** and **date of birth** so I can re-run the lookup?\n\nIf the document is only available as a scanned file, I can also try a semantic search across indexed clinical documents — let me know.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "231a0c3b-bdd0-4ad8-9562-9200f420e2f1",
+            "score": 1,
+            "reason": "2/2 ground-truth claims found in retrieved context — recall score: 1",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "John Doe has blood group O positive (O+).",
+                  "found": true,
+                  "reason": "The context explicitly states 'bloodGroup,O+' which confirms John Doe's blood group."
+                },
+                {
+                  "claim": "John Doe has allergies to Peanuts and Shellfish.",
+                  "found": true,
+                  "reason": "The context explicitly states 'allergies,Peanuts,Shellfish' which confirms John Doe's allergies."
+                }
+              ]
+            },
+            "analyzePrompt": "Ground-Truth Answer:\nJohn Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each claim in the ground-truth answer, determine if it is supported by the retrieved context."
+          },
+          "faithfulness": {
+            "input": {
+              "query": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?"
+            },
+            "output": {
+              "text": "I wasn't able to find that student in the system.\n\n- **MRN lookup** for `CS/2024/001` → not found.\n- **Name lookup** for `John Doe` → not found.\n\nThis clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies. A few possible reasons:\n\n- The MRN format `CS/2024/001` looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.\n- The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.\n- The record could be filed under a different spelling or a more specific MRN.\n\nCould you confirm or provide:\n1. The correct **MRN** as it appears in the clinical system, or\n2. The student's **full legal name** and **date of birth** so I can re-run the lookup?\n\nIf the document is only available as a scanned file, I can also try a semantic search across indexed clinical documents — let me know.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "f72abf1c-9bf5-4b58-bf97-71f32457c50d",
+            "score": 0,
+            "reason": "0 supported, 5 contradicted, 2 unverifiable out of 7 claims — faithfulness score: 0",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "I wasn't able to find that student in the system.",
+                  "verdict": "no",
+                  "reason": "The context provides a complete record for the student with registration number CS/2024/001 and name John Doe."
+                },
+                {
+                  "claim": "MRN lookup for CS/2024/001 → not found.",
+                  "verdict": "no",
+                  "reason": "The context contains a record with the registration number CS/2024/001."
+                },
+                {
+                  "claim": "Name lookup for John Doe → not found.",
+                  "verdict": "no",
+                  "reason": "The context contains a record with the name John Doe."
+                },
+                {
+                  "claim": "This clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies.",
+                  "verdict": "no",
+                  "reason": "The context provides a complete registration record for the student, including blood group (O+) and allergies (Peanuts, Shellfish)."
+                },
+                {
+                  "claim": "The MRN format CS/2024/001 looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.",
+                  "verdict": "unsure",
+                  "reason": "The context provides the registration number CS/2024/001 but does not specify if it is a medical record number or a school admission number, nor does it describe the clinical index's identifier scheme."
+                },
+                {
+                  "claim": "The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.",
+                  "verdict": "no",
+                  "reason": "The context shows that John Doe is a registered student with a complete record."
+                },
+                {
+                  "claim": "The record could be filed under a different spelling or a more specific MRN.",
+                  "verdict": "unsure",
+                  "reason": "The context does not provide information about alternative spellings or more specific MRNs."
+                }
+              ]
+            },
+            "analyzePrompt": "Generated Answer:\nI wasn't able to find that student in the system.\n\n- **MRN lookup** for `CS/2024/001` → not found.\n- **Name lookup** for `John Doe` → not found.\n\nThis clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies. A few possible reasons:\n\n- The MRN format `CS/2024/001` looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.\n- The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.\n- The record could be filed under a different spelling or a more specific MRN.\n\nCould you confirm or provide:\n1. The correct **MRN** as it appears in the clinical system, or\n2. The student's **full legal name** and **date of birth** so I can re-run the lookup?\n\nIf the document is only available as a scanned file, I can also try a semantic search across indexed clinical documents — let me know.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nExtract all factual claims from the answer and verify each against the context."
+          }
+        }
+      },
+      {
+        "input": {
+          "query": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?"
+        },
+        "scorerResults": {
+          "context-precision": {
+            "input": {
+              "query": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?"
+            },
+            "output": {
+              "text": "I'll help you find John Doe's enrollment date and phone number from the student registration records. Let me first resolve the patient identity and then search the relevant documents.I found John Doe's record in the uploaded student registration file. Here are the requested details:\n\n| Field | Value |\n|-------|-------|\n| **Enrollment Date** | 2024-01-15 |\n| **Phone Number** | 08012345678 |\n\n**Source:** `student_bulk_upload_template (1).csv` (fileId: `4e7605c28e6f4d37b57fc454e2982b97`)\n\nFor additional context, the record also shows:\n- **Registration Number:** CS/2024/001\n- **Full Name:** John Michael Doe\n- **Date of Birth:** 2000-01-15\n- **Email:** john.doe@example.com\n- **Guardian Contact:** Jane Doe (Mother) — 08098765432\n- **Emergency Contact:** Dr. Smith — 08011111111\n- **Known Allergies:** Peanuts, Shellfish\n\nLet me know if you'd like me to cross-check these against the clinical record or pull any additional fields.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe enrolled on 2024-01-15 and his phone number is 08012345678.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "5e596294-a76b-4fce-931a-5e13addd791f",
+            "score": 1,
+            "reason": "1/1 context chunks are relevant — MAP precision score: 1",
+            "analyzeStepResult": {
+              "verdicts": [
+                {
+                  "index": 0,
+                  "relevant": true,
+                  "reason": "This chunk contains all the requested information for John Doe: enrollment date and phone number."
+                }
+              ]
+            },
+            "analyzePrompt": "Query: From uploaded student registration records, what enrollment date and phone number are on file for John Doe?\n\nRetrieved Context Chunks:\n[0] regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each chunk, judge whether it is relevant and useful to answer the query."
+          },
+          "context-recall": {
+            "input": {
+              "query": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?"
+            },
+            "output": {
+              "text": "I'll help you find John Doe's enrollment date and phone number from the student registration records. Let me first resolve the patient identity and then search the relevant documents.I found John Doe's record in the uploaded student registration file. Here are the requested details:\n\n| Field | Value |\n|-------|-------|\n| **Enrollment Date** | 2024-01-15 |\n| **Phone Number** | 08012345678 |\n\n**Source:** `student_bulk_upload_template (1).csv` (fileId: `4e7605c28e6f4d37b57fc454e2982b97`)\n\nFor additional context, the record also shows:\n- **Registration Number:** CS/2024/001\n- **Full Name:** John Michael Doe\n- **Date of Birth:** 2000-01-15\n- **Email:** john.doe@example.com\n- **Guardian Contact:** Jane Doe (Mother) — 08098765432\n- **Emergency Contact:** Dr. Smith — 08011111111\n- **Known Allergies:** Peanuts, Shellfish\n\nLet me know if you'd like me to cross-check these against the clinical record or pull any additional fields.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe enrolled on 2024-01-15 and his phone number is 08012345678.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "3fa22d47-8368-459f-9a6e-52ffc30b18cb",
+            "score": 1,
+            "reason": "2/2 ground-truth claims found in retrieved context — recall score: 1",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "John Doe enrolled on 2024-01-15",
+                  "found": true,
+                  "reason": "The context chunk contains 'John,Doe' and '2024-01-15' in the enrollmentDate field."
+                },
+                {
+                  "claim": "his phone number is 08012345678",
+                  "found": true,
+                  "reason": "The context chunk contains '08012345678' in the phone field."
+                }
+              ]
+            },
+            "analyzePrompt": "Ground-Truth Answer:\nJohn Doe enrolled on 2024-01-15 and his phone number is 08012345678.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each claim in the ground-truth answer, determine if it is supported by the retrieved context."
+          },
+          "faithfulness": {
+            "input": {
+              "query": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?"
+            },
+            "output": {
+              "text": "I'll help you find John Doe's enrollment date and phone number from the student registration records. Let me first resolve the patient identity and then search the relevant documents.I found John Doe's record in the uploaded student registration file. Here are the requested details:\n\n| Field | Value |\n|-------|-------|\n| **Enrollment Date** | 2024-01-15 |\n| **Phone Number** | 08012345678 |\n\n**Source:** `student_bulk_upload_template (1).csv` (fileId: `4e7605c28e6f4d37b57fc454e2982b97`)\n\nFor additional context, the record also shows:\n- **Registration Number:** CS/2024/001\n- **Full Name:** John Michael Doe\n- **Date of Birth:** 2000-01-15\n- **Email:** john.doe@example.com\n- **Guardian Contact:** Jane Doe (Mother) — 08098765432\n- **Emergency Contact:** Dr. Smith — 08011111111\n- **Known Allergies:** Peanuts, Shellfish\n\nLet me know if you'd like me to cross-check these against the clinical record or pull any additional fields.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "John Doe enrolled on 2024-01-15 and his phone number is 08012345678.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "e0daeeac-604f-4763-8fb5-18cab967d5c4",
+            "score": 1,
+            "reason": "9 supported, 0 contradicted, 0 unverifiable out of 9 claims — faithfulness score: 1",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "John Doe's enrollment date is 2024-01-15.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'enrollmentDate' as '2024-01-15' for John Doe."
+                },
+                {
+                  "claim": "John Doe's phone number is 08012345678.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'phone' as '08012345678' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Registration Number is CS/2024/001.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'regNumber' as 'CS/2024/001' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Full Name is John Michael Doe.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'firstName' as 'John', 'lastName' as 'Doe', and 'middleName' as 'Michael' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Date of Birth is 2000-01-15.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'dateOfBirth' as '2000-01-15' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Email is john.doe@example.com.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'email' as 'john.doe@example.com' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Guardian Contact is Jane Doe (Mother) — 08098765432.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'guardianName' as 'Jane Doe', 'guardianRelationship' as 'Mother', and 'guardianPhone' as '08098765432' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Emergency Contact is Dr. Smith — 08011111111.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'emergencyContactName' as 'Dr. Smith' and 'emergencyContactPhone' as '08011111111' for John Doe."
+                },
+                {
+                  "claim": "John Doe's Known Allergies are Peanuts, Shellfish.",
+                  "verdict": "yes",
+                  "reason": "The context explicitly states 'allergies' as 'Peanuts,Shellfish' for John Doe."
+                }
+              ]
+            },
+            "analyzePrompt": "Generated Answer:\nI'll help you find John Doe's enrollment date and phone number from the student registration records. Let me first resolve the patient identity and then search the relevant documents.I found John Doe's record in the uploaded student registration file. Here are the requested details:\n\n| Field | Value |\n|-------|-------|\n| **Enrollment Date** | 2024-01-15 |\n| **Phone Number** | 08012345678 |\n\n**Source:** `student_bulk_upload_template (1).csv` (fileId: `4e7605c28e6f4d37b57fc454e2982b97`)\n\nFor additional context, the record also shows:\n- **Registration Number:** CS/2024/001\n- **Full Name:** John Michael Doe\n- **Date of Birth:** 2000-01-15\n- **Email:** john.doe@example.com\n- **Guardian Contact:** Jane Doe (Mother) — 08098765432\n- **Emergency Contact:** Dr. Smith — 08011111111\n- **Known Allergies:** Peanuts, Shellfish\n\nLet me know if you'd like me to cross-check these against the clinical record or pull any additional fields.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nExtract all factual claims from the answer and verify each against the context."
+          }
+        }
+      },
+      {
+        "input": {
+          "query": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?"
+        },
+        "scorerResults": {
+          "context-precision": {
+            "input": {
+              "query": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?"
+            },
+            "output": {
+              "text": "I'll help you find the guardian or emergency contact information for John Doe from his registration documents. Let me start by resolving the patient's identity.Let me try a few alternative searches to locate the patient.The patient lookup for \"John Doe\" returned no results, and broad searches for \"Doe\" or \"John\" also returned no matches. Let me try one more variant and also check the document corpus in case the name appears there.I found the registration document. Based on the bulk upload template content, here is the guardian/emergency contact information for John Doe:\n\n## John Doe — Guardian & Emergency Contact\n\n| Role | Name | Relationship | Phone |\n|------|------|--------------|-------|\n| **Guardian** | Jane Doe | Mother | 08098765432 |\n| **Emergency Contact** | Dr. Smith | Doctor | 08011111111 |\n\n**Source:** Registration/bulk upload template document (`student_bulk_upload_template (1).csv`), fileId `4e7605c28e6f4d37b57fc454e2982b97`, chunk 0.\n\nNote: I could not resolve a patient record in the system for \"John Doe\" — this information comes from the document corpus only. If you'd like me to cross-reference this with a specific patient MRN, please provide the MRN so I can pull any additional EHR context.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "Jane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "009fc34e-6917-4ba9-a999-58410aab2c75",
+            "score": 1,
+            "reason": "1/1 context chunks are relevant — MAP precision score: 1",
+            "analyzeStepResult": {
+              "verdicts": [
+                {
+                  "index": 0,
+                  "relevant": true,
+                  "reason": "This chunk contains all the requested information about the guardian (Jane Doe, Mother) and emergency contact (Dr. Smith, Doctor) for John Doe."
+                }
+              ]
+            },
+            "analyzePrompt": "Query: In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?\n\nRetrieved Context Chunks:\n[0] regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each chunk, judge whether it is relevant and useful to answer the query."
+          },
+          "context-recall": {
+            "input": {
+              "query": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?"
+            },
+            "output": {
+              "text": "I'll help you find the guardian or emergency contact information for John Doe from his registration documents. Let me start by resolving the patient's identity.Let me try a few alternative searches to locate the patient.The patient lookup for \"John Doe\" returned no results, and broad searches for \"Doe\" or \"John\" also returned no matches. Let me try one more variant and also check the document corpus in case the name appears there.I found the registration document. Based on the bulk upload template content, here is the guardian/emergency contact information for John Doe:\n\n## John Doe — Guardian & Emergency Contact\n\n| Role | Name | Relationship | Phone |\n|------|------|--------------|-------|\n| **Guardian** | Jane Doe | Mother | 08098765432 |\n| **Emergency Contact** | Dr. Smith | Doctor | 08011111111 |\n\n**Source:** Registration/bulk upload template document (`student_bulk_upload_template (1).csv`), fileId `4e7605c28e6f4d37b57fc454e2982b97`, chunk 0.\n\nNote: I could not resolve a patient record in the system for \"John Doe\" — this information comes from the document corpus only. If you'd like me to cross-reference this with a specific patient MRN, please provide the MRN so I can pull any additional EHR context.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "Jane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "6c415a6d-6e00-4e16-8dc9-19a12bfc84da",
+            "score": 1,
+            "reason": "3/3 ground-truth claims found in retrieved context — recall score: 1",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "Jane Doe is listed as guardian/emergency contact.",
+                  "found": true,
+                  "reason": "The retrieved context explicitly lists 'Jane Doe' under 'guardianName'."
+                },
+                {
+                  "claim": "Her relationship is Mother.",
+                  "found": true,
+                  "reason": "The retrieved context explicitly lists 'Mother' under 'guardianRelationship'."
+                },
+                {
+                  "claim": "Her phone number is 08098765432.",
+                  "found": true,
+                  "reason": "The retrieved context explicitly lists '08098765432' under 'guardianPhone'."
+                }
+              ]
+            },
+            "analyzePrompt": "Ground-Truth Answer:\nJane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nFor each claim in the ground-truth answer, determine if it is supported by the retrieved context."
+          },
+          "faithfulness": {
+            "input": {
+              "query": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?"
+            },
+            "output": {
+              "text": "I'll help you find the guardian or emergency contact information for John Doe from his registration documents. Let me start by resolving the patient's identity.Let me try a few alternative searches to locate the patient.The patient lookup for \"John Doe\" returned no results, and broad searches for \"Doe\" or \"John\" also returned no matches. Let me try one more variant and also check the document corpus in case the name appears there.I found the registration document. Based on the bulk upload template content, here is the guardian/emergency contact information for John Doe:\n\n## John Doe — Guardian & Emergency Contact\n\n| Role | Name | Relationship | Phone |\n|------|------|--------------|-------|\n| **Guardian** | Jane Doe | Mother | 08098765432 |\n| **Emergency Contact** | Dr. Smith | Doctor | 08011111111 |\n\n**Source:** Registration/bulk upload template document (`student_bulk_upload_template (1).csv`), fileId `4e7605c28e6f4d37b57fc454e2982b97`, chunk 0.\n\nNote: I could not resolve a patient record in the system for \"John Doe\" — this information comes from the document corpus only. If you'd like me to cross-reference this with a specific patient MRN, please provide the MRN so I can pull any additional EHR context.",
+              "context": [
+                "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+              ]
+            },
+            "groundTruth": "Jane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.",
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "48bb0652-6aa8-4a5b-acb0-bcc59ca16e9b",
+            "score": 1,
+            "reason": "6 supported, 0 contradicted, 0 unverifiable out of 6 claims — faithfulness score: 1",
+            "analyzeStepResult": {
+              "claims": [
+                {
+                  "claim": "The guardian for John Doe is Jane Doe.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'guardianName,Jane Doe'."
+                },
+                {
+                  "claim": "Jane Doe's relationship to John Doe is Mother.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'guardianRelationship,Mother'."
+                },
+                {
+                  "claim": "Jane Doe's phone number is 08098765432.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'guardianPhone,08098765432'."
+                },
+                {
+                  "claim": "The emergency contact for John Doe is Dr. Smith.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'emergencyContactName,Dr. Smith'."
+                },
+                {
+                  "claim": "Dr. Smith's relationship to John Doe is Doctor.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'emergencyContactRelationship,Doctor'."
+                },
+                {
+                  "claim": "Dr. Smith's phone number is 08011111111.",
+                  "verdict": "yes",
+                  "reason": "The retrieved context explicitly states 'emergencyContactPhone,08011111111'."
+                }
+              ]
+            },
+            "analyzePrompt": "Generated Answer:\nI'll help you find the guardian or emergency contact information for John Doe from his registration documents. Let me start by resolving the patient's identity.Let me try a few alternative searches to locate the patient.The patient lookup for \"John Doe\" returned no results, and broad searches for \"Doe\" or \"John\" also returned no matches. Let me try one more variant and also check the document corpus in case the name appears there.I found the registration document. Based on the bulk upload template content, here is the guardian/emergency contact information for John Doe:\n\n## John Doe — Guardian & Emergency Contact\n\n| Role | Name | Relationship | Phone |\n|------|------|--------------|-------|\n| **Guardian** | Jane Doe | Mother | 08098765432 |\n| **Emergency Contact** | Dr. Smith | Doctor | 08011111111 |\n\n**Source:** Registration/bulk upload template document (`student_bulk_upload_template (1).csv`), fileId `4e7605c28e6f4d37b57fc454e2982b97`, chunk 0.\n\nNote: I could not resolve a patient record in the system for \"John Doe\" — this information comes from the document corpus only. If you'd like me to cross-reference this with a specific patient MRN, please provide the MRN so I can pull any additional EHR context.\n\nRetrieved Context Chunks:\nregNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15\n\nExtract all factual claims from the answer and verify each against the context."
+          }
+        }
+      }
+    ]
+  },
+  "sql": {
+    "items": 3,
+    "scores": {
+      "sql-execution-accuracy": 1,
+      "sql-exact-match": 1
+    },
+    "perItem": [
+      {
+        "input": {
+          "query": "How many patients are in the EHR?",
+          "expectedSql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL",
+          "expectedRows": [
+            {
+              "count": "150"
+            }
+          ]
+        },
+        "scorerResults": {
+          "sql-execution-accuracy": {
+            "input": {
+              "query": "How many patients are in the EHR?",
+              "expectedSql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL",
+              "expectedRows": [
+                {
+                  "count": "150"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+              "rows": [
+                {
+                  "count": "150"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "9534ab04-9d34-4eac-8c20-09fe10d88c8e",
+            "score": 1,
+            "reason": "Result sets match exactly (exact comparison)",
+            "preprocessStepResult": {
+              "mode": "exact",
+              "match": true
+            },
+            "analyzeStepResult": {
+              "correct": true,
+              "reason": "exact result-set comparison"
+            },
+            "analyzePrompt": "The result has already been evaluated by exact comparison. Return: {\"correct\":true,\"reason\":\"exact result-set comparison\"}"
+          },
+          "sql-exact-match": {
+            "input": {
+              "query": "How many patients are in the EHR?",
+              "expectedSql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL",
+              "expectedRows": [
+                {
+                  "count": "150"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+              "rows": [
+                {
+                  "count": "150"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "b750a424-341c-4847-abe7-494f42640857",
+            "score": 1,
+            "reason": "Generated SQL matches expected SQL after normalization"
+          }
+        }
+      },
+      {
+        "input": {
+          "query": "How many encounters are recorded?",
+          "expectedSql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL",
+          "expectedRows": [
+            {
+              "count": "246"
+            }
+          ]
+        },
+        "scorerResults": {
+          "sql-execution-accuracy": {
+            "input": {
+              "query": "How many encounters are recorded?",
+              "expectedSql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL",
+              "expectedRows": [
+                {
+                  "count": "246"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+              "rows": [
+                {
+                  "count": "246"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "20853864-edec-4e13-9f28-7b1504c893aa",
+            "score": 1,
+            "reason": "Result sets match exactly (exact comparison)",
+            "preprocessStepResult": {
+              "mode": "exact",
+              "match": true
+            },
+            "analyzeStepResult": {
+              "correct": true,
+              "reason": "exact result-set comparison"
+            },
+            "analyzePrompt": "The result has already been evaluated by exact comparison. Return: {\"correct\":true,\"reason\":\"exact result-set comparison\"}"
+          },
+          "sql-exact-match": {
+            "input": {
+              "query": "How many encounters are recorded?",
+              "expectedSql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL",
+              "expectedRows": [
+                {
+                  "count": "246"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+              "rows": [
+                {
+                  "count": "246"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "69f445f5-f0d2-434c-979b-b81d44450d44",
+            "score": 1,
+            "reason": "Generated SQL matches expected SQL after normalization"
+          }
+        }
+      },
+      {
+        "input": {
+          "query": "List the first 5 patient last names alphabetically.",
+          "expectedSql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+          "expectedRows": [
+            {
+              "lastName": "Abubakar"
+            },
+            {
+              "lastName": "Abubakar"
+            },
+            {
+              "lastName": "Adamu"
+            },
+            {
+              "lastName": "Adamu"
+            },
+            {
+              "lastName": "Adamu"
+            }
+          ]
+        },
+        "scorerResults": {
+          "sql-execution-accuracy": {
+            "input": {
+              "query": "List the first 5 patient last names alphabetically.",
+              "expectedSql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+              "expectedRows": [
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+              "rows": [
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "cc612ef9-bfa3-462a-b093-5c1c334c9bad",
+            "score": 1,
+            "reason": "Result sets match exactly (exact comparison)",
+            "preprocessStepResult": {
+              "mode": "exact",
+              "match": true
+            },
+            "analyzeStepResult": {
+              "correct": true,
+              "reason": "exact result-set comparison"
+            },
+            "analyzePrompt": "The result has already been evaluated by exact comparison. Return: {\"correct\":true,\"reason\":\"exact result-set comparison\"}"
+          },
+          "sql-exact-match": {
+            "input": {
+              "query": "List the first 5 patient last names alphabetically.",
+              "expectedSql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+              "expectedRows": [
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                }
+              ]
+            },
+            "output": {
+              "sql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+              "rows": [
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Abubakar"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                },
+                {
+                  "lastName": "Adamu"
+                }
+              ]
+            },
+            "scoreSource": "experiment",
+            "targetScope": "span",
+            "runId": "9da98b90-1eac-45be-9001-8bbd384ea52e",
+            "score": 1,
+            "reason": "Generated SQL matches expected SQL after normalization"
+          }
+        }
+      }
+    ]
+  }
+}

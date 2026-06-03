@@ -1,9 +1,8 @@
 import { createScorer } from '@mastra/core/evals';
 import { createAnswerRelevancyScorer } from '@mastra/evals/scorers/prebuilt';
-import { google } from '@ai-sdk/google';
 import { z } from 'zod';
-
-const judgeModel = google('gemini-2.5-flash');
+import { getQueryFromRun } from './evalArtifacts.js';
+import { judgeModel } from './judgeModel.js';
 
 // ─── Input / output shapes for RAG scorers ───────────────────────────────────
 // input  : { query, groundTruth? }
@@ -41,9 +40,9 @@ Respond with JSON only — no markdown, no extra text:
       ),
     }),
     createPrompt: ({ run }) => {
-      const chunks = (run.output as { context: string[] }).context;
+      const chunks = (run.output as { context?: string[] }).context ?? [];
       const chunksText = chunks.map((c, i) => `[${i}] ${c}`).join('\n\n');
-      return `Query: ${(run.input as { query: string }).query}\n\nRetrieved Context Chunks:\n${chunksText}\n\nFor each chunk, judge whether it is relevant and useful to answer the query.`;
+      return `Query: ${getQueryFromRun(run.input)}\n\nRetrieved Context Chunks:\n${chunksText}\n\nFor each chunk, judge whether it is relevant and useful to answer the query.`;
     },
   })
   .generateScore(({ results }) => {
@@ -104,7 +103,7 @@ Respond with JSON only — no markdown, no extra text:
       const groundTruth = (run as unknown as { groundTruth?: string }).groundTruth
         ?? (run.input as { groundTruth?: string }).groundTruth
         ?? '';
-      const chunks = (run.output as { context: string[] }).context;
+      const chunks = (run.output as { context?: string[] }).context ?? [];
       return `Ground-Truth Answer:\n${groundTruth}\n\nRetrieved Context Chunks:\n${chunks.join('\n---\n')}\n\nFor each claim in the ground-truth answer, determine if it is supported by the retrieved context.`;
     },
   })
@@ -154,7 +153,7 @@ Respond with JSON only — no markdown, no extra text:
     }),
     createPrompt: ({ run }) => {
       const answer = (run.output as { text: string }).text;
-      const chunks = (run.output as { context: string[] }).context;
+      const chunks = (run.output as { context?: string[] }).context ?? [];
       return `Generated Answer:\n${answer}\n\nRetrieved Context Chunks:\n${chunks.join('\n---\n')}\n\nExtract all factual claims from the answer and verify each against the context.`;
     },
   })

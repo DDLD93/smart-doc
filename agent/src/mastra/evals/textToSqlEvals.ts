@@ -1,8 +1,6 @@
 import { createScorer } from '@mastra/core/evals';
-import { google } from '@ai-sdk/google';
 import { z } from 'zod';
-
-const judgeModel = google('gemini-2.5-flash');
+import { judgeModel } from './judgeModel.js';
 
 // ─── Input / output shapes for Text-to-SQL scorers ───────────────────────────
 // input  : { query, expectedSql?, expectedRows? }
@@ -84,7 +82,8 @@ const normalizeSql = (sql: string): string =>
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/;$/, '');
+    .replace(/;$/, '')
+    .replace(/\s+limit\s+\d+\s*$/i, '');
 
 export const exactMatchAccuracyScorer = createScorer<
   { query: string; expectedSql: string },
@@ -98,14 +97,14 @@ export const exactMatchAccuracyScorer = createScorer<
     const input = run.input as { expectedSql: string };
     const output = run.output as { sql?: string };
     const expected = normalizeSql(input.expectedSql);
-    const actual = normalizeSql(output.sql ?? '');
+    const actual = normalizeSql(typeof output.sql === 'string' ? output.sql : '');
     return expected === actual ? 1 : 0;
   })
   .generateReason(({ score, run }) => {
     const input = run.input as { expectedSql: string };
     const output = run.output as { sql?: string };
     const expected = normalizeSql(input.expectedSql);
-    const actual = normalizeSql(output.sql ?? '');
+    const actual = normalizeSql(typeof output.sql === 'string' ? output.sql : '');
     return score === 1
       ? 'Generated SQL matches expected SQL after normalization'
       : `SQL mismatch after normalization.\n  Expected: ${expected}\n  Got:      ${actual}`;

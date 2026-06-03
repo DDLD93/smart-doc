@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rag-001",
+    "input": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?",
+    "groundTruth": "John Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.",
+    "limit": 10
+  },
+  {
+    "id": "rag-002",
+    "input": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?",
+    "groundTruth": "John Doe enrolled on 2024-01-15 and his phone number is 08012345678.",
+    "limit": 10
+  },
+  {
+    "id": "rag-003",
+    "input": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?",
+    "groundTruth": "Jane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.",
+    "limit": 10
+  }
+]

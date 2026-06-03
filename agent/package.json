@@ -6,7 +6,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
+    "start": "mastra start",
+    "eval:capture:agent": "tsx src/mastra/evals/captureEvalCasesAgent.ts",
+    "eval:capture:tools": "tsx src/mastra/evals/captureEvalCasesTools.ts",
+    "eval:gold-sql": "tsx src/mastra/evals/buildGoldSql.ts",
+    "eval:run": "tsx src/mastra/evals/runEvals.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,12 +23,12 @@
   "dependencies": {
     "@ai-sdk/google": "^1.0.0",
     "@ai-sdk/openai": "^1.0.0",
-    "@mastra/core": "^1.28.0",
-    "@mastra/evals": "^1.2.2",
-    "@mastra/libsql": "^1.9.0",
-    "@mastra/loggers": "^1.1.1",
-    "@mastra/memory": "^1.17.1",
-    "@mastra/pg": "^1.9.2",
+    "@mastra/core": "^1.39.0",
+    "@mastra/evals": "^1.2.4",
+    "@mastra/libsql": "^1.12.1",
+    "@mastra/loggers": "^1.1.2",
+    "@mastra/memory": "^1.20.2",
+    "@mastra/pg": "^1.12.1",
     "@mastra/qdrant": "^1.0.2",
     "ai": "^3.4.33",
     "pkg-types": "^2.3.1",
@@ -32,7 +36,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
-    "mastra": "^1.6.3",
+    "mastra": "^1.12.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.2"
   }
 }

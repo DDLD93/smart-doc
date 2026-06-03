@@ -6,6 +6,20 @@ export {
 } from './ragEvals.js';
 
 export {
+  chunkTextFromRagHit,
+  extractContextFromToolData,
+  extractSqlFromToolData,
+  normalizeEvalInput,
+  parseToolResultsFromGenerate,
+  mapAgentRunToRagEvalOutput,
+  mapAgentRunToSqlEvalOutput,
+  mergeRagContextFromToolResults,
+} from './evalArtifacts.js';
+
+export { judgeModel } from './judgeModel.js';
+export { scoreCapturedBatch } from './scoreBatch.js';
+
+export {
   executionAccuracyScorer,
   exactMatchAccuracyScorer,
 } from './textToSqlEvals.js';

@@ -1,0 +1,119 @@
+[
+  {
+    "id": "sql-001",
+    "input": {
+      "query": "How many patients are in the EHR?",
+      "expectedSql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL",
+      "expectedRows": [
+        {
+          "count": "150"
+        }
+      ]
+    },
+    "goldRows": [
+      {
+        "count": "150"
+      }
+    ],
+    "output": {
+      "sql": "SELECT COUNT(*)::text AS count FROM patients_ehr WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+      "rows": [
+        {
+          "count": "150"
+        }
+      ]
+    },
+    "capturedAt": "2026-06-03T23:14:46.631Z",
+    "captureMode": "tools"
+  },
+  {
+    "id": "sql-002",
+    "input": {
+      "query": "How many encounters are recorded?",
+      "expectedSql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL",
+      "expectedRows": [
+        {
+          "count": "246"
+        }
+      ]
+    },
+    "goldRows": [
+      {
+        "count": "246"
+      }
+    ],
+    "output": {
+      "sql": "SELECT COUNT(*)::text AS count FROM encounters WHERE \"deletedAt\" IS NULL\nLIMIT 500",
+      "rows": [
+        {
+          "count": "246"
+        }
+      ]
+    },
+    "capturedAt": "2026-06-03T23:14:46.790Z",
+    "captureMode": "tools"
+  },
+  {
+    "id": "sql-003",
+    "input": {
+      "query": "List the first 5 patient last names alphabetically.",
+      "expectedSql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+      "expectedRows": [
+        {
+          "lastName": "Abubakar"
+        },
+        {
+          "lastName": "Abubakar"
+        },
+        {
+          "lastName": "Adamu"
+        },
+        {
+          "lastName": "Adamu"
+        },
+        {
+          "lastName": "Adamu"
+        }
+      ]
+    },
+    "goldRows": [
+      {
+        "lastName": "Abubakar"
+      },
+      {
+        "lastName": "Abubakar"
+      },
+      {
+        "lastName": "Adamu"
+      },
+      {
+        "lastName": "Adamu"
+      },
+      {
+        "lastName": "Adamu"
+      }
+    ],
+    "output": {
+      "sql": "SELECT \"lastName\" FROM patients_ehr WHERE \"deletedAt\" IS NULL ORDER BY \"lastName\" ASC LIMIT 5",
+      "rows": [
+        {
+          "lastName": "Abubakar"
+        },
+        {
+          "lastName": "Abubakar"
+        },
+        {
+          "lastName": "Adamu"
+        },
+        {
+          "lastName": "Adamu"
+        },
+        {
+          "lastName": "Adamu"
+        }
+      ]
+    },
+    "capturedAt": "2026-06-03T23:14:46.953Z",
+    "captureMode": "tools"
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "rag-001",
+    "input": "Search indexed registration documents for student John Doe CS/2024/001: what blood group and allergies are listed?",
+    "groundTruth": "John Doe has blood group O positive (O+) and allergies to Peanuts and Shellfish.",
+    "limit": 10,
+    "output": {
+      "text": "I wasn't able to find that student in the system.\n\n- **MRN lookup** for `CS/2024/001` → not found.\n- **Name lookup** for `John Doe` → not found.\n\nThis clinical data store doesn't appear to contain a registration record for that student, so I can't retrieve the blood group or allergies. A few possible reasons:\n\n- The MRN format `CS/2024/001` looks like a school admission number rather than a medical record number — the clinical index may use a different identifier scheme.\n- The name \"John Doe\" may be a placeholder, or the student may not yet be registered in the clinical system.\n- The record could be filed under a different spelling or a more specific MRN.\n\nCould you confirm or provide:\n1. The correct **MRN** as it appears in the clinical system, or\n2. The student's **full legal name** and **date of birth** so I can re-run the lookup?\n\nIf the document is only available as a scanned file, I can also try a semantic search across indexed clinical documents — let me know.",
+      "context": [
+        "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+      ]
+    },
+    "capturedAt": "2026-06-03T23:23:01.662Z",
+    "captureMode": "agent"
+  },
+  {
+    "id": "rag-002",
+    "input": "From uploaded student registration records, what enrollment date and phone number are on file for John Doe?",
+    "groundTruth": "John Doe enrolled on 2024-01-15 and his phone number is 08012345678.",
+    "limit": 10,
+    "output": {
+      "text": "I'll help you find John Doe's enrollment date and phone number from the student registration records. Let me first resolve the patient identity and then search the relevant documents.I found John Doe's record in the uploaded student registration file. Here are the requested details:\n\n| Field | Value |\n|-------|-------|\n| **Enrollment Date** | 2024-01-15 |\n| **Phone Number** | 08012345678 |\n\n**Source:** `student_bulk_upload_template (1).csv` (fileId: `4e7605c28e6f4d37b57fc454e2982b97`)\n\nFor additional context, the record also shows:\n- **Registration Number:** CS/2024/001\n- **Full Name:** John Michael Doe\n- **Date of Birth:** 2000-01-15\n- **Email:** john.doe@example.com\n- **Guardian Contact:** Jane Doe (Mother) — 08098765432\n- **Emergency Contact:** Dr. Smith — 08011111111\n- **Known Allergies:** Peanuts, Shellfish\n\nLet me know if you'd like me to cross-check these against the clinical record or pull any additional fields.",
+      "context": [
+        "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+      ]
+    },
+    "capturedAt": "2026-06-03T23:23:24.875Z",
+    "captureMode": "agent"
+  },
+  {
+    "id": "rag-003",
+    "input": "In registration document chunks for John Doe, who is the guardian or emergency contact and what is their relationship?",
+    "groundTruth": "Jane Doe is listed as guardian/emergency contact with relationship Mother and phone 08098765432.",
+    "limit": 10,
+    "output": {
+      "text": "I'll help you find the guardian or emergency contact information for John Doe from his registration documents. Let me start by resolving the patient's identity.Let me try a few alternative searches to locate the patient.The patient lookup for \"John Doe\" returned no results, and broad searches for \"Doe\" or \"John\" also returned no matches. Let me try one more variant and also check the document corpus in case the name appears there.I found the registration document. Based on the bulk upload template content, here is the guardian/emergency contact information for John Doe:\n\n## John Doe — Guardian & Emergency Contact\n\n| Role | Name | Relationship | Phone |\n|------|------|--------------|-------|\n| **Guardian** | Jane Doe | Mother | 08098765432 |\n| **Emergency Contact** | Dr. Smith | Doctor | 08011111111 |\n\n**Source:** Registration/bulk upload template document (`student_bulk_upload_template (1).csv`), fileId `4e7605c28e6f4d37b57fc454e2982b97`, chunk 0.\n\nNote: I could not resolve a patient record in the system for \"John Doe\" — this information comes from the document corpus only. If you'd like me to cross-reference this with a specific patient MRN, please provide the MRN so I can pull any additional EHR context.",
+      "context": [
+        "regNumber,email,password,firstName,lastName,middleName,dateOfBirth,gender,contactEmail,phone,state,lga,address,guardianName,guardianPhone,guardianRelationship,bloodGroup,allergies,emergencyContactName,emergencyContactRelationship,emergencyContactPhone,enrollmentDate CS/2024/001,john.doe@example.com,TempPass123!,John,Doe,Michael,2000-01-15,Male,john.doe@example.com,08012345678,Lagos,Ikeja,\"123 Main Street, Lagos\",Jane Doe,08098765432,Mother,O+,\"Peanuts,Shellfish\",Dr. Smith,Doctor,08011111111,2024-01-15"
+      ]
+    },
+    "capturedAt": "2026-06-03T23:23:43.709Z",
+    "captureMode": "agent"
+  }
+]
