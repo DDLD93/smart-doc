@@ -1,7 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
-import { LibSQLStore } from '@mastra/libsql';
+import { PostgresStore } from '@mastra/pg';
 import {
 	listPatientsByMrnOrName,
 	getSchemaTool,
@@ -16,9 +16,15 @@ import {
 import { answerRelevancyScorer, contextPrecisionScorer, contextRecallScorer, faithfulnessScorer } from '../evals/ragEvals';
 import { executionAccuracyScorer, exactMatchAccuracyScorer } from '../evals/textToSqlEvals';
 
-const storage = new LibSQLStore({
-	id: "mastra-db",
-	url: "file:../mastra.db",
+const connectionString = process.env.POSTGRES_CONNECTION_STRING ?? process.env.DATABASE_URL;
+
+if (!connectionString) {
+	throw new Error('Set POSTGRES_CONNECTION_STRING (or DATABASE_URL) for agent memory storage.');
+}
+
+const storage = new PostgresStore({
+	id: 'mastra-db',
+	connectionString,
 });
 
 const memory = new Memory({
